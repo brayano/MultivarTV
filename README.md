@@ -1,2 +1,2 @@
 # mbs-tv
-In this repository, we build mesh-based solutions to total variation problems. 
+In this repository, we build mesh-based solutions (MBS) to total variation (TV) problems. More details coming soon... 
