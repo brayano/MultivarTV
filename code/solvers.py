@@ -1,12 +1,7 @@
 import numpy as np
-import cvxpy as cvx
-import cvxopt as cvxopt
-import scipy as scipy
 import utils
-import math
-import time # USeful for clocking
-from scipy.sparse.linalg import spsolve, inv, splu
-from scipy.sparse import coo_matrix, vstack, csr_matrix, csc_matrix
+from scipy.sparse.linalg import spsolve, splu
+from scipy.sparse import csc_matrix
 
 # IN THIS FILE, WE CREATE SOLVERS FOR THE MESH BASED SOLUTION TO P-DIMENSIONAL TOTAL VARIATION PROBLEMS
 
@@ -17,23 +12,24 @@ def softthresh(z,lam):
 	return np.multiply(sign,pmax)
 
 
-def mbs_one(data,y, m, theta_init=None,mesh = None, tune=1.0, eps=0.01, tol=0.0001, cache=None):
+def mbs_one(data,y, m, theta_init=None,mesh = None, tune=1.0, eps=0.01, tol=0.001, cache=None):
 	# An ADMM solver for the mesh-based approximation to a total variation problem at a fixed tuning parameter.
 	# data: (n,p)-array; y: (n ,1)-array; m:(p,)-array 
 	# Assume a regular mesh, i.e. 
-
+	# cache=None: some matrix operations are stored to avoid excess computation
 	n = y.size
 	y = np.array(y).reshape(n,1)
 	
 	if cache is None:
-		# Create O-matrix: specify x and number of desired cuts
-		# Create D-matrix: specify n and k
 		if mesh is None:
 			meshob = utils.mesh_coords(data,mesh_dims=m)
-			mesh = meshob['mesh']
-			deltas = meshob['deltas']
+			mesh = meshob['mesh'] # output as column vector, i.e. for p-covariates, mesh is a tensor, so we flatten into column. 
+			deltas = meshob['deltas'] # for x_i, deltas[i] = (max(x_i)-min(x_i))/m_i (for regular mesh)
+		# Create O-matrix, i.e. nearest neighbor interpolation matrix: for x_i nearest to theta_j, O_ij = 1, else O_il=0, l != j    
 		O = utils.nearest_interp_matrix(data,mesh); Ot = O.transpose()
+		# Create D-matrix, i.e. stack of difference matrices providing linear operator on theta for estimating penalty, see utils.py
 		D = utils.create_D(dims = m,deltas=deltas); Dt = D.transpose()
+		# Store common matrix operations
 		crossD = Dt.dot(D); crossO = Ot.dot(O)
 		rowsD = D.shape[0]
 		cache2 = Ot.dot(y)
@@ -43,6 +39,7 @@ def mbs_one(data,y, m, theta_init=None,mesh = None, tune=1.0, eps=0.01, tol=0.00
 		ntheta = np.prod(m)
 		
 	else:
+		# cache=[cache1,cache2,D,Dt,rowsD, O, Ot,mesh, ntheta]
 		cache1 = cache[0]
 		cache2 = cache[1]
 		D = cache[2]
@@ -55,7 +52,7 @@ def mbs_one(data,y, m, theta_init=None,mesh = None, tune=1.0, eps=0.01, tol=0.00
 	
 	# Solve convex problem.
 	lamda = tune
-	rho = tune
+	rho = tune # Set step size to tuning parameter
 	## Initialize
 	if theta_init is None:
 		theta = np.repeat(np.mean(np.array(y)),ntheta).reshape(ntheta,1)
@@ -66,7 +63,8 @@ def mbs_one(data,y, m, theta_init=None,mesh = None, tune=1.0, eps=0.01, tol=0.00
 	thetaold = np.repeat(np.mean(np.array(y))-1,ntheta).reshape(ntheta,1)
 
 	counter = 1
-	maxc = 10000
+	## ADMM requires many iterations, be generous
+	maxc = 5000
 
 	while any(abs(theta-thetaold)>tol):
 		thetaold = theta; alphaold = alpha; uold = u
@@ -80,6 +78,7 @@ def mbs_one(data,y, m, theta_init=None,mesh = None, tune=1.0, eps=0.01, tol=0.00
 	return output
 
 def mbs_predict(mbs_one_object,data):
+	# Given data and estimated theta.hats, calculate fitted values of data. 
 	O = utils.nearest_interp_matrix(data,mbs_one_object['mesh'])
 	return O.dot(mbs_one_object['theta.hat'])
 
