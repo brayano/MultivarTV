@@ -11,8 +11,8 @@ Install:
 	pip install pytest
 
 
-To run tests:
+To run tests in ~/code:
 
 	py.test
 
-runs unittest tests. Pytest by default searches for `*_test.py` or `test_*.py`. 
+runs unittest tests. Pytest by default searches for `*_test.py` or `test_*.py`. See [https://github.com/pytest-dev/pytest](https://github.com/pytest-dev/pytest) for details.  
