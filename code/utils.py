@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.linalg import block_diag
 from scipy.sparse import coo_matrix, csc_matrix, vstack, linalg as sla
+from scipy.sparse.linalg import spsolve, inv, splu
 import cvxopt as cvxopt
 import math
 import itertools
@@ -8,40 +9,67 @@ from operator import add, sub
 
 # Tensor to Vector Function
 
+def t2v_unit(ind,dims): # Strictly for unit testing
+	# Examples: For 3x3 mesh (bivariate case, 9 thetas), t2v_ind([0,0]) = 0, t2v_ind([1,0])=1, ..., t2v_ind([2,2]) = 8
+	val = ind[0]
+	for i in range(1,dims.shape[0]):
+		val = val + ind[i]*np.prod(dims[:i])
+	return val
+
 def t2v(dims):
-	# Takes the dimensions of the tensor outputs index in long vector
-	def t2v_ind(index):
-		val = index[0]
+	# Closure: outputs function handling tensor to vector mappings given multi-index
+	def t2v_ind(ind):
+		# Examples: For 3x3 mesh (bivariate case, 9 thetas), t2v_ind([0,0]) = 0, t2v_ind([1,0])=1, ..., t2v_ind([2,2]) = 8
+		val = ind[0]
 		for i in range(1,dims.shape[0]):
-			val = val + index[i]*np.prod(dims[:i])
+			val = val + ind[i]*np.prod(dims[:i])
 		return val
 	
 	return t2v_ind
 
-#test = t2v(np.array([5,5]))
-#print test(np.array([0,0]))
-
 # Vector to tensor function
+
+def v2t_unit(ind,dims): # Version for unit testing
+	vals = range(dims.shape[0])
+	i = dims.shape[0]
+	ind = float(ind+1)
+	while i > 0:
+		rel_prod = np.prod(dims[:i-1]); 
+		vals[i-1] = int(math.ceil(ind/rel_prod))-1
+		ind = ind-(vals[i-1])*rel_prod
+		i = i -1
+	return np.asarray(vals)
+
 def v2t(dims):
 	# Takes the dimensions of the tensor, outputs a function that takes vector position and outputs tensor position
-	def v2t_ind(index):
+	def v2t_ind(ind):
 		vals = range(dims.shape[0])
 		i = dims.shape[0]
-		index = float(index+1)
+		ind = float(ind+1)
 		while i > 0:
 			rel_prod = np.prod(dims[:i-1]); #print rel_prod
-			vals[i-1] = int(math.ceil(index/rel_prod))-1
-			index = index-(vals[i-1])*rel_prod
+			vals[i-1] = int(math.ceil(ind/rel_prod))-1
+			ind = ind-(vals[i-1])*rel_prod
 			i = i -1
 		return np.asarray(vals)
 	return v2t_ind
 
-# Getting all first order difference binaries for p-dimension into a list without using python map function, list comprehensions are just for loops so should be able to port into C++
+# Getting all first order difference binaries for p-dimension into a list without using python list comprehension
+
+#def fd_binaries(p):
+#	lst = [list(i) for i in itertools.product([0,1],repeat=p)][1:] # the 0th element is [0,0,0] for p=3, [0,0] p=2, etc. 
+#	return np.array(lst)
+
 def fd_binaries(p):
-	lst = [list(i) for i in itertools.product([0,1],repeat=p)][1:] # the 0th element is [0,0,0] for p=3, [0,0] p=2, etc. 
-	return np.array(lst)
+	bins = []
+	for i in range(1<<p):
+		s=bin(i)[2:] # bin(i) grabs the ith binary as a string, bin(0)='0', bin(1)='1' (01), bin(2)='10', bin(3)='11', bin(4)='100', etc.
+		s='0'*(p-len(s))+s # push the hidden zeros back into the string
+		bins.append( map(int,list(s)))
+	return np.array(bins[1:])
 
 def calc_alpha(bins,dims):
+	# Calculates all differences needed to be summed to evaluate an approximate penalty, not clear if useful yet. 
 	nbins = len(bins)
 	alpha = 0
 	for i in range(nbins):
@@ -71,15 +99,6 @@ def build_diffmat(dim,direction):
 	D = csc_matrix((val,(row_ind,col_ind)))
 	return D
 
-
-#D3 = build_diffmat(dim = np.array([3,3]),direction=0) # For a 3x3 grid, first differences in row directions
-#print D3, "break"
-#print build_diffmat(dim = np.array([3,3]),direction=1)
-#D2 = build_diffmat(dim=np.array([2,3]), direction = 1)
-#print D2.dot(D3)
-#print build_diffmat(dims = np.array([3,3]),direction=0)
-#print build_diffmat(dims = np.array([3,3]),direction=1)
-
 def mixedpartial(dims, binary):
 	diffmats_list = []
 	# I want to know which partial derivatives we are approximating given the binary
@@ -98,7 +117,6 @@ def mixedpartial(dims, binary):
 		else:
 			dims = dims - myidents[j-1]
 			diffmats_list.append(build_diffmat(dims,direction = indices[j]))
-	#print diffmats_list
 	n_mats = len(diffmats_list)
 	if n_mats == 1:
 		return diffmats_list[0]
@@ -117,12 +135,6 @@ def binary2diffmat(dims,binary):
 		D = mixedpartial(dims,binary)
 	return D
 
-#print binary2diffmat(dims=np.array([3,3]), binary = np.array([0,1]))
-#print "BREAK"
-#print binary2diffmat(dims=np.array([3,3]), binary = np.array([1,0]))
-#print binary2diffmat(dims=np.array([3,3]), binary = np.array([1,1]))
-# We need to come up with a test to verify that p=3 case works
-
 def create_D(dims,deltas= None): # None so that we can debug easier with matrix of 0s and 1s
 	binaries = fd_binaries(dims.shape[0])
 	diffmats = []
@@ -133,21 +145,13 @@ def create_D(dims,deltas= None): # None so that we can debug easier with matrix 
 		for i in range(binaries.shape[0]-1):
 			delts = np.prod(deltas**(1-binaries[i])) # If asking partials for x_j (j=1,2,...), we do not multiply delta_j. 
 			diffmats.append(binary2diffmat(dims,binary=binaries[i])*delts)
-	#print diffmats
 	D = vstack(diffmats)
 	return D
 
-#deltas = np.array([.2,.3])
-#D =  create_D(dims=np.array([3,3]),deltas=deltas)
-#print D
-#print D*.03
-#print D.shape
-#print D.transpose().dot(D)
-
 # Nearest point in p-dimensions
-# Written pythonically first, then using only map functions
+
 def nearest1_unit(target,choices):
-	choices = np.asarray(choices) # should be input as array, but if not we coerce it
+	# choices, i.e. the mesh, should always input as column by mesh_coords
 	dists = np.sum((choices-target)**2,axis=1)
 	# We want to return vector-index of mesh
 	return np.argmin(dists)
@@ -165,18 +169,15 @@ def nearest_interp_matrix(data,mesh):
 	# Create the n x (m_1 x m_2 x ... m_p) interpolation matrix
 	n = len(data)
 	cols = len(mesh)
-	#O = np.zeros((n,cols))
-	
 	# Find the inds
-	# We cannot do it this way unless one data point is nearest the min and another near the max, i.e. we lose columns. 
 	col_ind = nearest1(data,mesh); row_ind = range(n); val = [1.0]*n
+	# Instantiate the sparse matrix
 	O = csc_matrix((val,(row_ind,col_ind)),(n,cols))
-	#for i in range(n):
-	#	O[i,col_ind[i]] = 1.0
 	return O
 
 # Need to create mesh covariate values
 def mesh_coords(data,mesh_dims):
+	# Given data, output knots that are evenly space in the data domain. 
 	ntheta = np.prod(mesh_dims)
 	eps = 0.01
 	unilat_mesh = []; deltas = []
@@ -191,37 +192,19 @@ def mesh_coords(data,mesh_dims):
 	mesh = np.concatenate(flats,1)
 	return {'mesh':mesh, 'deltas':deltas}
 
-#a = np.random.uniform(-1,1,20).reshape((20,1))
-#b = np.random.uniform(0,2,20).reshape((20,1))
-#c = np.random.uniform(3,4,20).reshape((20,1))
-#data = np.concatenate((a,b,c),1)
-#print data.shape
-#mesh = mesh_coords(data,mesh_dims=np.array([3,3,3]))
-#O = nearest_interp_matrix(data,mesh)
-#print O
+# PSEUDO-INVERSE FUNCTION
+# can only unit test within optimization problem
 
-# Basic tests
-#print create_D([2,2,2])
-#print fd_binaries(p=4)
+def mypinv(spm, spmt, Oty):
+	# spm: sparse matrix; spmt: transpose of sparse matrix
+	rows = Oty.shape[0]
+	aprime = spmt.dot(spm)
+	a = splu(aprime.tocsc())
+	b = a.solve(Oty.reshape((rows,)))
+	return spm.dot(b)
 
-#mydim = np.asarray([3,3])
-#test = t2v(mydim)
-#test2 = v2t(mydim)
-#print test2(9)
-# If the number 1 through 27 come out sequentially, working.
-#for i in range(3):
-#	for j in range(3):
-#		for k in range(3):
-#			print test([k,j,i])
+def lam_max_pinv(spm, spmt, Oty):
+	A = mypinv(spm, spmt, Oty)
+	tune = np.max(abs(A))
+	return tune
 
-#for i in range(1,4):
-#	for j in range(1,4):
-#		print test([j,i])
-#print test2(0)
-#print test2(26)
-#for i in range(3**2):
-#	print i, test2(i)
-
-#for i in range(3):
-#	for j in range(3):
-#		print test(np.array([j,i]))
