@@ -1,0 +1,8 @@
+MultivarTV-package	MultivarTV-package
+gen_mesh	gen_mesh
+MultivarTV	MultivarTV-package
+mvtv	mvtv
+mvtv.default	mvtv.default
+plotFits	plotFits
+plotResiduals	plotResiduals
+predict.mvtv	predict.mvtv

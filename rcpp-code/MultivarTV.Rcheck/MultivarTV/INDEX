@@ -1,0 +1,9 @@
+MultivarTV-package      Mesh Based Solutions to Multivariate Total
+                        Variation Problems
+gen_mesh                Generate a mesh
+mvtv                    MVTV Generic Class
+mvtv.default            Default Multivariate Total Variation Denoising
+                        Solver
+plotFits                Plotting Fitted Surface, p=1
+plotResiduals           Plotting Residuals
+predict.mvtv            MVTV Predict Function
