@@ -116,4 +116,5 @@ vec rowmean(mat A);
 
 Rcpp::List kfold(int k, arma::mat data, arma::vec y);
 
+arma::vec kfoldinds( int n, int k );
 #endif

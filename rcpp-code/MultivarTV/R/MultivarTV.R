@@ -32,7 +32,7 @@ plotFits <- function(mvtvmodel, addmesh = FALSE) {
   if (class(mvtvmodel) != "mvtv") stop("Input must be a 'mvtv' model object.")
   
   newData <- matrix(seq(min(mvtvmodel$mesh),max(mvtvmodel$mesh),length.out = 1000),ncol=1)
-  fitData <- predict.mvtv(mvtvobject = mvtvmodel,data = as.matrix(newData))
+  fitData <- predict(mvtvobject = mvtvmodel,data = as.matrix(newData), mesh = mvtvmodel$mesh)
   delta <- mvtvmodel$mesh[2] - mvtvmodel$mesh[1]
   
   plot(mvtvmodel$y~mvtvmodel$data,ylab="y",xlab="x",pch=16,cex=0.5)

@@ -4,12 +4,14 @@
 \alias{predict.mvtv}
 \title{MVTV Predict Function}
 \usage{
-\method{predict}{mvtv}(mvtvobject, data = NULL)
+\method{predict}{mvtv}(mvtvobject, data = NULL, mesh = NULL)
 }
 \arguments{
 \item{mvtvobject}{object produced by mbtv.default}
 
 \item{data}{n by p matrix of inputs}
+
+\item{mesh}{m by p mesh used by fitting function mvtv}
 }
 \description{
 Use fitted 'mvtv' object to predict new data.

@@ -272,8 +272,9 @@ uword nearest1_unit(rowvec target, MAT choices){
 		//dists[i] = sum( pow(target-choices[i],2) );
 		dists[i] = sum( pow(target-choices.row(i),2) );
 	}
-	uvec mininds = find( (dists - min(dists) )== 0);
-	return mininds[0];
+	uword mininds = dists.index_min();
+	//uvec mininds = find( (dists - min(dists) )== 0);
+	return mininds;
 }
 
 uvec nearest1( mat data, MAT mesh){
@@ -384,14 +385,6 @@ vec rowmean(mat A){
 
 // CROSS-VALIDATION FUNCTIONS/STRUCTS
 // Modified to return list in case we want to expose to R.
-////' @title Cross-Validation Function
-////' @description Create k-folds
-////' @name kfold
-////' @param k number of folds
-////' @param data matrix of data (p columns, n rows)
-////' @param y response column
-////' @export
-//// [[Rcpp::export]]
 Rcpp::List kfold(int k, arma::mat data, arma::vec y){
 	int i;
 	int ntest = data.n_rows/k;
@@ -415,4 +408,15 @@ Rcpp::List kfold(int k, arma::mat data, arma::vec y){
 	}
 	return Rcpp::List::create(Rcpp::Named("Xtest")=Xtest,Rcpp::Named("Xtrain")=Xtrain,
                            Rcpp::Named("Ytest")=Ytest,Rcpp::Named("Ytrain")=Ytrain);
+}
+
+arma::vec kfoldinds( int n, int k ) {
+  arma::vec indices(n);
+  
+  for (int i = 0; i < n; i++ )
+    indices[ i ] = i%k;
+  
+  arma::vec inds_shuffled = arma::shuffle( indices,1 );
+  
+  return inds_shuffled;
 }

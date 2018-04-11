@@ -65,6 +65,7 @@ Rcpp::List mbs(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arma::ma
 //' @name predict.mvtv
 //' @param mvtvobject object produced by mbtv.default
 //' @param data n by p matrix of inputs
+//' @param mesh m by p mesh used by fitting function mvtv
 //' @examples
 //' # Approximating Bivariate Fused Lasso for Uniform Data 
 //' ## Generate Data
@@ -82,12 +83,19 @@ Rcpp::List mbs(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arma::ma
 //' newfits <- predict(mbs_fold5, newdata) # Fit new data
 //' @export
 // [[Rcpp::export(name="predict.mvtv")]]
-arma::vec mbspredict(Rcpp::List mvtvobject, Rcpp::Nullable<arma::mat> data = R_NilValue){
-  if (! mvtvobject.inherits("mvtv")) Rcpp::stop("Input must be a mvtv.default() model object.");
+arma::vec mbspredict(Rcpp::List mvtvobject, Rcpp::Nullable<arma::mat> data = R_NilValue, Rcpp::Nullable<arma::mat> mesh = R_NilValue){
+  //if (! mvtvobject.inherits("mvtv")) Rcpp::stop("Input must be a mvtv.default() model object.");
   if (data.isNull()) return mvtvobject["fitted"];
   
   arma::mat Data = Rcpp::as<arma::mat>(data);
-  arma::sp_mat O = nearest_interp_matrix(Data, mvtvobject["mesh"]);
+  arma::sp_mat O;
+  if (mesh.isNull()) O = nearest_interp_matrix(Data,mvtvobject["mesh"]);
+  else{
+    arma::mat Mesh = Rcpp::as<arma::mat>(mesh);
+    O = nearest_interp_matrix(Data,Mesh);
+  } 
+  //Mesh = Rcpp::as<arma::mat>(mesh);
+  //arma::sp_mat O = nearest_interp_matrix(Data, Mesh);
   arma::vec thetahat = Rcpp::as<arma::vec>(mvtvobject["theta_hat"]);
   arma::vec fits = O*thetahat;
   return fits;
