@@ -195,11 +195,11 @@ void fill_output_mbs(mbs_object &output, vec mse, vec lambdas){
 	output.mses = mse;
 }
 
-arma::vec create_lambdas(int n_lambda, mbs_one_inits inits, Rcpp::Nullable<arma::vec> lambdas, bool verbose, int d){
+arma::vec create_lambdas(int n_lambda, mbs_one_inits inits, Rcpp::Nullable<arma::vec> lambdas, bool verbose){
 	double lambda_max;
 	arma::vec lambdavec;
 	if (lambdas.isNull()){
-		lambda_max = lam_max_pinv(inits.D, inits.Oty, d);
+		lambda_max = lam_max_pinv(inits.D, inits.Oty);
 		lambdavec = flipud(exp(linspace<vec>(log(lambda_max*0.001), log(lambda_max),n_lambda)));
 		
 		if (verbose) Rcpp::Rcout << "Lambda_max = " << lambda_max << std::endl;
@@ -331,11 +331,12 @@ Rcpp::List mbs_impl(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arm
 	fill_cache(cache,inits); // Create cache using inits
 	
 	// Create tuning parameters
-	vec LAMBDAS = create_lambdas(n_lambda, inits, lambdas, verbose, data.n_cols);
+	vec LAMBDAS = create_lambdas(n_lambda, inits, lambdas, verbose);
 	vec FTRUE = gen_ftrue(y,ftrue);
 	int i;
 	mbs_object path_object;
 	mat mse_mat(n_lambda, folds);
+	vec mean_mses(n_lambda);
 	uword bestModelind;
 	if (folds == 1){
 	  mbs_path(data, y, m, MESH, n_lambda, LAMBDAS, FTRUE, path_object, inits, cache,verbose);
@@ -343,6 +344,7 @@ Rcpp::List mbs_impl(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arm
 	  mbs_fit_optimal(data,y,m,best_model,MESH,LAMBDAS, mse_mat, cache, inits,verbose);
 	  uword lowestMSE = mse_mat.index_min();
 	  bestModelind = lowestMSE;
+	  mean_mses = mse_mat;
 	}
 	else{
 	  // CROSS-VALIDATION ON TRAINING DATA: FIND LAMBDA THAT MINIMIZES MSE
@@ -351,13 +353,14 @@ Rcpp::List mbs_impl(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arm
 	  for (i=0; i<folds; i++){
 		  arma::uvec train_ids = find(foldinds != i); // Find training indices
 	    arma::uvec test_ids = find(foldinds == i); // Find testing indices
+
 		  mbs_path(data.rows(train_ids), y.rows(train_ids), m, MESH, n_lambda, LAMBDAS, FTRUE, path_object, inits, cache, verbose);
 	    if (verbose) Rcpp::Rcout << "Fold Complete: " << i << std::endl;
 		  mse_mat.col(i) = test_mse(data.rows(test_ids), y.rows(test_ids), path_object, n_lambda);
 	  }
 	  // FIT OPTIMAL SOLUTION
 	  mbs_path(data, y, m, MESH, n_lambda, LAMBDAS, FTRUE, path_object, inits, cache, verbose);
-	  vec mean_mses = sqrt(rowmean(mse_mat) );
+	  mean_mses = rowmean(mse_mat);
 	  uword lowestMSE = mean_mses.index_min();
 	  bestModelind = lowestMSE;
 	  best_model = path_object.models[bestModelind];
@@ -370,7 +373,8 @@ Rcpp::List mbs_impl(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arm
                            Rcpp::Named("m", best_model.m),Rcpp::Named("mesh", best_model.mesh),
                            Rcpp::Named("theta_hat", best_model.theta_hat),
                            Rcpp::Named("y", best_model.y), Rcpp::Named("residuals",residuals),
-                             Rcpp::Named("models", models), Rcpp::Named("lambda_minmse_ind",bestModelind));
+                             Rcpp::Named("models", models), Rcpp::Named("lambda_minmse_ind",bestModelind),
+                             Rcpp::Named("cv.mses", mean_mses));
 	// Remove allocated memory for cache. NOTE: ARMADILLO OBJECTS ARE DEALLOCATED ONCE OUT OF SCOPE (don't worry about them out of function)
 	delete cache;
 }

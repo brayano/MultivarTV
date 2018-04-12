@@ -109,7 +109,7 @@ void fill_output(mbs_object &output, vec mse, vec lambdas);
 
 // CREATE VECTOR OF LAMBDAS
 
-arma::vec create_lambdas(int n_lambda, mbs_one_object inits, Rcpp::Nullable<arma::vec> lambdas=R_NilValue, bool verbose = true, int d = 1);
+arma::vec create_lambdas(int n_lambda, mbs_one_object inits, Rcpp::Nullable<arma::vec> lambdas=R_NilValue, bool verbose = true);
 
 // GENERATE SOLUTION TO VECTOR OF LAMBDAS
 
