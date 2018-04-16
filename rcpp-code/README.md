@@ -8,11 +8,11 @@ In R, "MultivarTV" can do the following (with accompanying caveats):
 
 1. Fit cross-validated solution to multivariate total variation denoising problem via mvtv(). We solve a finite approximation to the total variation problem, which allows for efficient computation while maintaining theoretical guarantees. For sample size n and predictors p, iterations of ADMM solve in linear time, $O(sqrt(n)^p)$. Note that this suggests memory issues for large dimension problems.
 2. Generate residuals plot for solution to multivariate total variation problem via plotResiduals(). 
-3. Plot fitted surface for solution to univariate total variation problem via plotFits(). 
+3. Plot fitted surface for solution to univariate/bivariate total variation problem via plotFits() (importFrom(scatterplot3d)). 
 
 To-Do List:
 
-1. Expand plotFits() to also plot bivariate surface. 
+1. Use ggplot2 for plotting functions.
 2. Create vignette demonstrating novel applications. 
 
 ## Installing "MultivarTV"
