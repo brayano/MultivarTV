@@ -97,9 +97,9 @@ vec cg(sp_mat A, vec b);
 
 // Perform pseudo-inverse of 
 
-vec mypinv(sp_mat a, vec Oty, int d);
+vec mypinv(sp_mat a, vec Oty);
 
-double lam_max_pinv(arma::sp_mat a, arma::vec Oty, int d);
+double lam_max_pinv(arma::sp_mat a, arma::vec Oty);
 
 // Row mean function
 
@@ -116,4 +116,5 @@ vec rowmean(mat A);
 
 Rcpp::List kfold(int k, arma::mat data, arma::vec y);
 
+arma::vec kfoldinds( int n, int k );
 #endif

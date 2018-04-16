@@ -76,9 +76,9 @@ void fill_output_mbs_one(mbs_one_object& output, mat data, vec y, MAT mesh, vec 
 
 void adapt_step(vec r_current, vec s_current, double rho_current, vec u_current, adaptstep &object){
 	double rho_next;
-	double r_norm = sqrt(dot(r_current.t(),r_current));
-	double s_norm = sqrt(dot(s_current.t(), s_current));
-	double tau = 1.0;
+	double r_norm = norm(r_current);
+	double s_norm = norm(s_current);
+	double tau = 2;
 	if (r_norm > 10*s_norm){
 		object.rho_next = tau*rho_current;
 		object.u_next = 1.0/tau*u_current;
@@ -105,44 +105,37 @@ vec admm_update(vec y, mbs_one_inits inits, vec* theta_init, double lambda, bool
 	}
 	vec alpha = inits.D*theta;
 	vec u(inits.rowsD); 
-	//u.fill(1/lambda);
 	u.fill(0.0);
-	double initval = mean(y)-0.1;
-	vec thetaold(inits.ntheta); thetaold.fill(initval);
-
 	int counter = 1;
 	int max_counter = 2000;
-	double rho = lambda; 
-	double rhoold;
-	vec alphaold, uold, b;
-	vec primal_residual(inits.rowsD); primal_residual.fill(1.0);
-	vec dual_residual(inits.ntheta); dual_residual.fill(1.0);
+	double rho = lambda/2.0; 
+	vec b, uold;
+	vec primal_residual(inits.rowsD); vec dual_residual(inits.ntheta);
 	adaptstep stepobject;
 	arma::sp_mat spcrosses = inits.sp_crosses;
-	//while (any(abs(theta-thetaold) > 0.000001 ) ){
-	double dual_norm = 1;
-	double primal_norm = 1;
-	while ( dual_norm > TOL or primal_norm > TOL ) {
-		thetaold = theta; alphaold = alpha; rhoold = rho; uold = u;
+	double dual_norm = 1, primal_norm = 1;
+	double eps_dual = TOL, eps_primal = TOL;
+	while ( dual_norm > eps_dual or primal_norm > eps_primal ) {
+	  uold = u;
 		b = inits.Oty + rho*inits.Dt*(alpha+u);
 		theta = spsolve( spcrosses , b , "superlu" );
 		alpha = softthresh(inits.D*theta-u, lambda/rho);
 		primal_residual = alpha - inits.D*theta;
 		u +=  primal_residual;
-		//dual_residual = rho*inits.Dt*(alpha +u); // -alphaold
 		dual_residual = rho*inits.Dt*(u - uold);
 		// Stopping criterions
-		dual_norm = sqrt(dot(dual_residual.t(),dual_residual));
-		primal_norm = sqrt(dot(primal_residual.t(),primal_residual));
-		//Rcpp::Rcout << "dual_norm = " << dual_norm << " ,primal_norm = " << primal_norm << std::endl;
-		
+		dual_norm = norm(dual_residual);
+		primal_norm = norm(primal_residual);
+		eps_dual = TOL*(sqrt(inits.ntheta) + norm(inits.Dt*u));
+		eps_primal = TOL*(sqrt(inits.rowsD) + std::max(norm(inits.D*theta),norm(alpha)));
+
 		counter += 1;
 		if (counter>max_counter){
 			throw std::invalid_argument("Failed to converge!");
 		}
 		adapt_step(primal_residual, dual_residual, rho,u, stepobject);
 		rho = stepobject.rho_next; u = stepobject.u_next;
-		spcrosses = inits.crossO + rho * inits.crossD;
+		spcrosses = inits.crossO + rho * inits.crossD; 
 	}
 	if (verbose) Rcpp::Rcout << "Lambda= " << lambda << ", Counter = " << counter << std::endl;
 	return theta;
@@ -177,7 +170,7 @@ vec mbs_predict(mbs_one_object model, mat data){
 }
 
 double mse(vec fits, vec y){
-	double mseval = sum(pow(fits - y,2))/ y.size();
+  double mseval = pow(norm(fits - y),2)/ y.n_rows;
 	return mseval;
 }
 
@@ -200,7 +193,7 @@ arma::vec create_lambdas(int n_lambda, mbs_one_inits inits, Rcpp::Nullable<arma:
 	arma::vec lambdavec;
 	if (lambdas.isNull()){
 		lambda_max = lam_max_pinv(inits.D, inits.Oty);
-		lambdavec = flipud(exp(linspace<vec>(log(lambda_max*0.001), log(lambda_max),n_lambda)));
+		lambdavec = flipud(exp(linspace<vec>(log(lambda_max*0.0001), log(lambda_max),n_lambda)));
 		
 		if (verbose) Rcpp::Rcout << "Lambda_max = " << lambda_max << std::endl;
 	}
@@ -226,7 +219,7 @@ void mbs_path(mat data, vec y, vec m, MAT mesh, int n_lambda, vec lambdas, vec f
 	for (i=0; i<n_lambda; i++){
 		rho = lambdas[i];
 		sp_mat sp_crosses = inits.crossO+rho*inits.crossD; cache -> sp_crosses = sp_crosses; // Create/store sum of cross products
-		mbs_one(data,y,m, tempmodel,mesh,theta_init,rho,cache,verbose);
+		mbs_one(data,y,m, tempmodel, mesh, theta_init, rho, cache, verbose);
 		output.models.push_back(tempmodel);
 		MSEs[i] = mbs_mse(tempmodel, ftrue);
 		thetainit = tempmodel.theta_hat; // theta_init points to thetainit
@@ -296,6 +289,7 @@ vec test_mse(mat data, vec y, mbs_object path_object, int n_lambda){
 	for (i=0; i<n_lambda; i++){
 		fits = mbs_predict(path_object.models[i], data);
 		mses[i] = mse(fits, y);
+    //Rcpp::Rcout << "test_mse = " << mses[i] << std::endl;
 	}
 	return mses;
 }
@@ -315,7 +309,7 @@ Rcpp::List listPATH(mbs_object pob, arma::vec lambdas){
 }
 
 // MBS Cross-Validation Procedure
-Rcpp::List mbs_impl(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arma::mat> mesh, int n_lambda, Rcpp::Nullable<arma::vec> ftrue, Rcpp::Nullable<arma::vec> lambdas, int folds, bool verbose){
+Rcpp::List mbs_impl(const arma::mat data, const arma::vec y, arma::vec m, Rcpp::Nullable<arma::mat> mesh, int n_lambda, Rcpp::Nullable<arma::vec> ftrue, Rcpp::Nullable<arma::vec> lambdas, int folds, bool verbose){
 	// Initialize objects
 	mbs_one_object best_model;
 	mbs_one_inits inits;
@@ -334,13 +328,13 @@ Rcpp::List mbs_impl(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arm
 	vec LAMBDAS = create_lambdas(n_lambda, inits, lambdas, verbose);
 	vec FTRUE = gen_ftrue(y,ftrue);
 	int i;
-	mbs_object path_object;
+	mbs_object final_path;
 	mat mse_mat(n_lambda, folds);
 	vec mean_mses(n_lambda);
 	uword bestModelind;
 	if (folds == 1){
-	  mbs_path(data, y, m, MESH, n_lambda, LAMBDAS, FTRUE, path_object, inits, cache,verbose);
-	  mse_mat.col(0) = test_mse(data, y, path_object, n_lambda);
+	  mbs_path(data, y, m, MESH, n_lambda, LAMBDAS, FTRUE, final_path, inits, cache,verbose);
+	  mse_mat.col(0) = test_mse(data, y, final_path, n_lambda);
 	  mbs_fit_optimal(data,y,m,best_model,MESH,LAMBDAS, mse_mat, cache, inits,verbose);
 	  uword lowestMSE = mse_mat.index_min();
 	  bestModelind = lowestMSE;
@@ -351,29 +345,38 @@ Rcpp::List mbs_impl(arma::mat data, arma::vec y, arma::vec m, Rcpp::Nullable<arm
 	  arma::vec foldinds = kfoldinds(data.n_rows,folds);
 
 	  for (i=0; i<folds; i++){
+	    mbs_object path_object;
 		  arma::uvec train_ids = find(foldinds != i); // Find training indices
 	    arma::uvec test_ids = find(foldinds == i); // Find testing indices
+      arma::mat train_x = data.rows(train_ids); arma::vec train_y = y.rows(train_ids);
+      arma::mat test_x = data.rows(test_ids); arma::vec test_y = y.rows(test_ids);
 
-		  mbs_path(data.rows(train_ids), y.rows(train_ids), m, MESH, n_lambda, LAMBDAS, FTRUE, path_object, inits, cache, verbose);
+      create_cache_objects(train_x,train_y,MESH, m, inits); // Create inits
+      fill_cache(cache,inits); // Create cache using inits
+      
+		  mbs_path(train_x, train_y, m, MESH, n_lambda, LAMBDAS, train_y, path_object, inits, cache, verbose);
 	    if (verbose) Rcpp::Rcout << "Fold Complete: " << i << std::endl;
-		  mse_mat.col(i) = test_mse(data.rows(test_ids), y.rows(test_ids), path_object, n_lambda);
+		  mse_mat.col(i) = test_mse(test_x, test_y, path_object, n_lambda);
 	  }
 	  // FIT OPTIMAL SOLUTION
-	  mbs_path(data, y, m, MESH, n_lambda, LAMBDAS, FTRUE, path_object, inits, cache, verbose);
+	  create_cache_objects(data,y,MESH, m, inits); // Create inits
+	  fill_cache(cache,inits); // Create cache using inits
+	  
+	  mbs_path(data, y, m, MESH, n_lambda, LAMBDAS, y, final_path, inits, cache, verbose);
 	  mean_mses = rowmean(mse_mat);
 	  uword lowestMSE = mean_mses.index_min();
 	  bestModelind = lowestMSE;
-	  best_model = path_object.models[bestModelind];
+	  best_model = final_path.models[bestModelind];
 	}
 	// Create residuals
 	arma::vec residuals = y - best_model.fitted;
-	Rcpp::List models = listPATH(path_object,LAMBDAS);
+	Rcpp::List models = listPATH(final_path,LAMBDAS);
 	
 	return Rcpp::List::create(Rcpp::Named("data", best_model.data),Rcpp::Named("fitted", best_model.fitted),
                            Rcpp::Named("m", best_model.m),Rcpp::Named("mesh", best_model.mesh),
                            Rcpp::Named("theta_hat", best_model.theta_hat),
                            Rcpp::Named("y", best_model.y), Rcpp::Named("residuals",residuals),
-                             Rcpp::Named("models", models), Rcpp::Named("lambda_minmse_ind",bestModelind),
+                             Rcpp::Named("models", models), Rcpp::Named("lambda_minmse_ind",bestModelind+1),
                              Rcpp::Named("cv.mses", mean_mses));
 	// Remove allocated memory for cache. NOTE: ARMADILLO OBJECTS ARE DEALLOCATED ONCE OUT OF SCOPE (don't worry about them out of function)
 	delete cache;

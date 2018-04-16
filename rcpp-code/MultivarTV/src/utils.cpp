@@ -316,7 +316,7 @@ vec cg(sp_mat A, vec b){
 	mat t = A * p;
 	double alpha;
 	int iter = 0;
-	int MAXIT = b.n_rows < 1000 ? b.n_rows : 1000; // assign minimum(b.n_rows,1000)
+	int MAXIT = b.n_rows < 2000 ? b.n_rows : 2000; // assign minimum(b.n_rows,1000)
 	//Rcpp::Rcout << "MAXIT = " << MAXIT << std::endl;
 	while (sqrt(rsnew) >= 0.0001*rsold0) {
 		alpha = rsold / pow(norm(t),2);
@@ -350,9 +350,11 @@ vec mypinv(sp_mat a, vec Oty){
 
 double lam_max_pinv(arma::sp_mat a, arma::vec Oty){
 	vec A = mypinv(a,Oty);
-	vec Apos = abs(A);
-	double tune = max(Apos);
-	return tune; 
+  double tune = norm(A, 1); // else "inf"
+  return tune; 
+	//vec Apos = abs(A);
+	//double tune = max(Apos);
+	//return pow(tune,2); 
 }
 
 vec rowmean(mat A){
