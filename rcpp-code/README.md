@@ -6,7 +6,7 @@ Package is still in development. Documentation can be accessed without installin
 
 In R, "MultivarTV" can do the following (with accompanying caveats):
 
-1. Fit cross-validated solution to multivariate total variation denoising problem via mvtv(). We solve a finite approximation to the total variation problem, which allows for efficient computation while maintaining theoretical guarantees. For sample size n and predictors p, algorithm runs roughly in linear time in the number of optimization parameters, <a href="https://www.codecogs.com/eqnedit.php?latex=~n^{\frac{p}{2}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?~n^{\frac{p}{2}}" title="~n^{\frac{p}{2}}" /></a>. Note that this suggests memory issues for large dimension problems.
+1. Fit cross-validated solution to multivariate total variation denoising problem via mvtv(). We solve a finite approximation to the total variation problem, which allows for efficient computation while maintaining theoretical guarantees. For sample size n and predictors p, algorithm runs roughly in linear time in the number of optimization parameters, <a href="https://www.codecogs.com/eqnedit.php?latex=\sim&space;n^{\frac{p}{2}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\sim&space;n^{\frac{p}{2}}" title="\sim n^{\frac{p}{2}}" /></a>. Note that this suggests memory issues for large dimension problems.
 2. Generate residuals plot for solution to multivariate total variation problem via plotResiduals(). 
 3. Plot fitted surface for solution to univariate/bivariate total variation problem via plotFits() (importFrom(scatterplot3d)). 
 
