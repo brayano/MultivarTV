@@ -11,13 +11,12 @@
 //
 // [[Rcpp::depends(RcppArmadillo)]]
 #include "utils.hpp"
-//#include "tvR_types.hpp"
 
 using namespace arma;
 typedef std::vector<int> VEC;
 typedef arma::mat MAT;
 #define EPS 0.0001
-#define TOL 0.01
+#define TOL 0.001
 
 // FUNCTION DECLARATION 
 
@@ -37,6 +36,8 @@ typedef struct mbs_cache {
 	sp_mat O; // interpolation matrix
 	sp_mat Ot; // transpose of interpolation matrix
 	int ntheta; // number of mesh points
+	sp_mat crossO;
+	sp_mat crossD;
 } mbs_cache;
 
 typedef struct mbs_one_inits {
@@ -108,7 +109,7 @@ void fill_output(mbs_object &output, vec mse, vec lambdas);
 
 // CREATE VECTOR OF LAMBDAS
 
-arma::vec create_lambdas(int n_lambda, mbs_one_object inits, Rcpp::Nullable<arma::vec> lambdas=R_NilValue, bool verbose = true, int d = 1);
+arma::vec create_lambdas(int n_lambda, mbs_one_object inits, Rcpp::Nullable<arma::vec> lambdas=R_NilValue, bool verbose = true);
 
 // GENERATE SOLUTION TO VECTOR OF LAMBDAS
 
@@ -129,6 +130,10 @@ void mbs_fit_optimal(mat data, vec y, vec m, mbs_one_object &best_model, MAT mes
 // Using solutions, generate predictions for test data
 
 arma::vec test_mse(arma::mat data, arma::vec y, mbs_object path_object, int n_lambda);
+
+// Create list of models in fitted path
+
+Rcpp::List listPATH(mbs_object pob, arma::vec lambdas);
 
 // Perform mbs_one over range of lambdas
 

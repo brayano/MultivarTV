@@ -272,8 +272,9 @@ uword nearest1_unit(rowvec target, MAT choices){
 		//dists[i] = sum( pow(target-choices[i],2) );
 		dists[i] = sum( pow(target-choices.row(i),2) );
 	}
-	uvec mininds = find( (dists - min(dists) )== 0);
-	return mininds[0];
+	uword mininds = dists.index_min();
+	//uvec mininds = find( (dists - min(dists) )== 0);
+	return mininds;
 }
 
 uvec nearest1( mat data, MAT mesh){
@@ -305,72 +306,55 @@ sp_mat nearest_interp_matrix(mat data, MAT mesh){
 vec cg(sp_mat A, vec b){
 	// Initialize x internally
 	vec x(b.n_rows); x.fill(0.0); 
-	//Rcpp::Rcout << "mean(Oty) = " << mean(b) << std::endl;
-	vec r = b - A * x;
+	vec d = b - A * x;
+	vec r = A.t()*d;
 	vec p = r;
-	double rsold = dot(r.t(),r);
-	double rsold0 = sqrt(rsold);
+	double rsold0 = norm(r);
+	//Rcpp::Rcout << "rsold0 = " << rsold0 << std::endl;
+	double rsold = pow(rsold0,2);
 	double rsnew = rsold + 1.0;
-	mat Ap;
+	mat t = A * p;
 	double alpha;
 	int iter = 0;
-	int MAXIT;
-	if (b.n_rows < 1000){
-		MAXIT = 1000;
-	}
-	else{
-		MAXIT = 100;
-	}
-	while (sqrt(rsnew) >= 0.001*rsold0) {
-		Ap = A * p;
-		alpha = rsold / dot(p.t(),Ap);
+	int MAXIT = b.n_rows < 2000 ? b.n_rows : 2000; // assign minimum(b.n_rows,1000)
+	//Rcpp::Rcout << "MAXIT = " << MAXIT << std::endl;
+	while (sqrt(rsnew) >= 0.0001*rsold0) {
+		alpha = rsold / pow(norm(t),2);
+		//Rcpp::Rcout << "rsold = " << rsold << std::endl;
+		//Rcpp::Rcout << "rsnew = " << rsnew << std::endl;
 		x += alpha * p;
-		r -= alpha * Ap;
-		rsnew = dot(r.t(),r);
-		//Rcpp::Rcout << "alpha," << alpha << "rsnew, " << rsnew << "rsold " << rsold << "p" << p << std::endl;
+		d -= alpha * t;
+		r = A.t()*d;
+		rsnew = pow(norm(r),2);
 		iter += 1;
 		if (iter == MAXIT){
 		  //Rcpp::Rcout << "Convergence of Conjugate Gradient reached! " << std::endl;
 		  break;
 		}
-		p = r + (rsnew / rsold) * p;
+		p = r + (rsnew / rsold) * p; // conjugate directions
+		t = A * p;
 		rsold = rsnew;
+		//Rcpp::Rcout << "residual = " << rsnew << std::endl;
 	}
 	return x;
 }
 
 
-vec mypinv(sp_mat a, vec Oty, int d){
+vec mypinv(sp_mat a, vec Oty){
 	sp_mat ata = a.t()*a;
 	// CONJUGATE GRADIENT to approximate lambda_max
-	//Rcpp::Rcout << "CG Begins! " << std::endl;
-	vec b;
-	if (d>1) b = cg(ata,Oty);
-	else{
-	  arma::mat ata2 = arma::conv_to<arma::mat>::from(ata); 
-	  b = solve(ata2,Oty);
-	} 
-	//Rcpp::Rcout << "CG Ends! " << std::endl;
+	vec b = cg(ata,Oty);
 	vec out = a*b;
-
-	//Rcpp::Rcout << "mean(out) " << mean(out) << std::endl;
 	return out;
 }
 
-////' @title Finding lam_max
-////' @description Using conjugate gradient, we approximate the 
-////' largest penalty parameter that incurs no regularization.
-////' @name lam_max_pinv
-////' @param a sparse matrix
-////' @param Oty product of interpolation matrix and response
-////' @export
-//// [[Rcpp::export]]
-double lam_max_pinv(arma::sp_mat a, arma::vec Oty, int d){
-	vec A = mypinv(a,Oty,d);
-	vec Apos = abs(A);
-	double tune = max(Apos);
-	double tune2 = std::min(tune,1000.0);
-	return tune2; 
+double lam_max_pinv(arma::sp_mat a, arma::vec Oty){
+	vec A = mypinv(a,Oty);
+  double tune = norm(A, 1); // else "inf"
+  return tune; 
+	//vec Apos = abs(A);
+	//double tune = max(Apos);
+	//return pow(tune,2); 
 }
 
 vec rowmean(mat A){
@@ -384,14 +368,6 @@ vec rowmean(mat A){
 
 // CROSS-VALIDATION FUNCTIONS/STRUCTS
 // Modified to return list in case we want to expose to R.
-////' @title Cross-Validation Function
-////' @description Create k-folds
-////' @name kfold
-////' @param k number of folds
-////' @param data matrix of data (p columns, n rows)
-////' @param y response column
-////' @export
-//// [[Rcpp::export]]
 Rcpp::List kfold(int k, arma::mat data, arma::vec y){
 	int i;
 	int ntest = data.n_rows/k;
@@ -415,4 +391,15 @@ Rcpp::List kfold(int k, arma::mat data, arma::vec y){
 	}
 	return Rcpp::List::create(Rcpp::Named("Xtest")=Xtest,Rcpp::Named("Xtrain")=Xtrain,
                            Rcpp::Named("Ytest")=Ytest,Rcpp::Named("Ytrain")=Ytrain);
+}
+
+arma::vec kfoldinds( int n, int k ) {
+  arma::vec indices(n);
+  
+  for (int i = 0; i < n; i++ )
+    indices[ i ] = i%k;
+  
+  arma::vec inds_shuffled = arma::shuffle( indices,1 );
+  
+  return inds_shuffled;
 }

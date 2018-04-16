@@ -24,6 +24,7 @@ These are unlikely file names for src files.
 * checking whether package ‘MultivarTV’ can be installed ... OK
 * checking installed package size ... OK
 * checking package directory ... OK
+* checking ‘build’ directory ... OK
 * checking DESCRIPTION meta-information ... OK
 * checking top-level files ... OK
 * checking for left-over files ... OK
@@ -48,7 +49,7 @@ mvtv.default:
 predict:
   function(object, ...)
 predict.mvtv:
-  function(mvtvobject, data)
+  function(mvtvobject, data, mesh)
 
 See section ‘Generic functions and methods’ in the ‘Writing R
 Extensions’ manual.
@@ -70,7 +71,12 @@ Extensions’ manual.
 * checking for GNU extensions in Makefiles ... OK
 * checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
 * checking compiled code ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
 * checking examples ... OK
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes in ‘inst/doc’ ... OK
+* checking re-building of vignette outputs ... OK
 * checking PDF version of manual ... OK
 * DONE
 Status: 2 WARNINGs, 1 NOTE

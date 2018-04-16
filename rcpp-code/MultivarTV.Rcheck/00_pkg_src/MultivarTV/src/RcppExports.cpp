@@ -26,14 +26,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // mbspredict
-arma::vec mbspredict(Rcpp::List mvtvobject, Rcpp::Nullable<arma::mat> data);
-RcppExport SEXP _MultivarTV_mbspredict(SEXP mvtvobjectSEXP, SEXP dataSEXP) {
+arma::vec mbspredict(Rcpp::List mvtvobject, Rcpp::Nullable<arma::mat> data, Rcpp::Nullable<arma::mat> mesh);
+RcppExport SEXP _MultivarTV_mbspredict(SEXP mvtvobjectSEXP, SEXP dataSEXP, SEXP meshSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type mvtvobject(mvtvobjectSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type data(dataSEXP);
-    rcpp_result_gen = Rcpp::wrap(mbspredict(mvtvobject, data));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type mesh(meshSEXP);
+    rcpp_result_gen = Rcpp::wrap(mbspredict(mvtvobject, data, mesh));
     return rcpp_result_gen;
 END_RCPP
 }

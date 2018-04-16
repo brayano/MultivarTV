@@ -42,6 +42,7 @@ mvtv.default <- function(data, y, m, mesh = NULL, n_lambda = 100L, ftrue = NULL,
 #' @name predict.mvtv
 #' @param mvtvobject object produced by mbtv.default
 #' @param data n by p matrix of inputs
+#' @param mesh m by p mesh used by fitting function mvtv
 #' @examples
 #' # Approximating Bivariate Fused Lasso for Uniform Data 
 #' ## Generate Data
@@ -58,8 +59,8 @@ mvtv.default <- function(data, y, m, mesh = NULL, n_lambda = 100L, ftrue = NULL,
 #' newdata <- matrix( runif(50), ncol = 2) # Generate new data
 #' newfits <- predict(mbs_fold5, newdata) # Fit new data
 #' @export
-predict.mvtv <- function(mvtvobject, data = NULL) {
-    .Call(`_MultivarTV_mbspredict`, mvtvobject, data)
+predict.mvtv <- function(mvtvobject, data = NULL, mesh = NULL) {
+    .Call(`_MultivarTV_mbspredict`, mvtvobject, data, mesh)
 }
 
 #' @title Generate a mesh
