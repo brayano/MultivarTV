@@ -56,6 +56,8 @@ typedef struct mbs_one_object {
 	mat data;
 	vec y;
 	vec m;
+	double rhohat;
+	vec uhat;
 } mbs_one_object;
 
 typedef std::vector<mbs_one_object> MBSVEC;
@@ -86,14 +88,20 @@ typedef struct adaptstep {
 	vec u_next;
 } adaptstep;
 
+typedef struct admm_out {
+  double rho;
+  vec theta;
+  vec u;
+} admm_out;
+
 void adapt_step(vec r_current, vec s_current, double rho_current, vec u_current, adaptstep &object);
 
 // ADMM Update Function
-vec admm_update(vec y, mbs_one_inits inits, vec* theta_init, double lambda, bool verbose);
+void admm_update(vec y, mbs_one_inits inits, vec & theta_init, double lambda, bool verbose, vec & u_init, double & rho_init, admm_out & out);
 
 // Mesh-based Solution to Total Variation Problem with Approximated Penalty at One tuning parameter. Output is theta.hat
 
-void mbs_one(mat data, vec y, vec m, mbs_one_object & output , MAT mesh ,  vec* theta_init = NULL, double lambda = 1.0 , mbs_cache* cache = NULL , bool verbose = true);
+void mbs_one(mat data, vec y, vec m, mbs_one_object & output , MAT mesh ,  vec & u, double & rho, vec & theta_init, double lambda = 1.0, mbs_cache* cache = NULL , bool verbose = true);
 
 // Given data, find fitted values using estimates in mbs_one_object
 
