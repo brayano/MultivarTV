@@ -122,13 +122,15 @@ void admm_update(vec y, mbs_one_inits inits, vec & theta_init, double lambda, bo
 		eps_dual = TOL*(sqrt(inits.ntheta) + norm(inits.Dt*u));
 		eps_primal = TOL*(sqrt(inits.rowsD) + std::max(norm(inits.D*theta),norm(alpha)));
 
-		counter += 1;
-		if (counter>max_counter){
-			throw std::invalid_argument("Failed to converge!");
-		}
 		adapt_step(primal_residual, dual_residual, rho,u, stepobject);
 		rho = stepobject.rho_next; u = stepobject.u_next;
 		spcrosses = inits.crossO + rho * inits.crossD; 
+		
+		counter += 1;
+		if (counter>max_counter){
+		  Rcpp::Rcout << "ADMM reached max_counter at lambda = " << lambda << std::endl;
+		  break; 
+		}
 	}
 	if (verbose) Rcpp::Rcout << "Lambda= " << lambda << ", Counter = " << counter << std::endl;
 	out.theta = theta; out.rho = rho; out.u = u;

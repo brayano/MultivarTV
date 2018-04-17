@@ -4,12 +4,14 @@
 \alias{plotFits}
 \title{Plotting Fitted Surface, p=1}
 \usage{
-plotFits(mvtvmodel, addmesh = FALSE)
+plotFits(mvtvmodel, addmesh = FALSE, adddata = TRUE)
 }
 \arguments{
-\item{mvtvmodel}{object of class 'mvtv'}
+\item{mvtvmodel}{object of class 'mvtv.'}
 
-\item{addmesh}{If TRUE, plot has vertical grey lines along x-axis value of mesh}
+\item{addmesh}{If TRUE, vertical grey lines plotted along x-axis value of mesh.}
+
+\item{adddata}{If TRUE, observed data is plotted.}
 }
 \description{
 Plotting fitted values for an 'mvtv' Object
