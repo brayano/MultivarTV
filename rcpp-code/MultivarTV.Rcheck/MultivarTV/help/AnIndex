@@ -3,6 +3,8 @@ gen_mesh	gen_mesh
 MultivarTV	MultivarTV-package
 mvtv	mvtv
 mvtv.default	mvtv.default
-plotFits	plotFits
+mvtv_default	mvtv_default
+plot.mvtv	plot.mvtv
 plotResiduals	plotResiduals
 predict.mvtv	predict.mvtv
+predict_mvtv	predict_mvtv

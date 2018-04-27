@@ -68,9 +68,9 @@ void fill_cache(mbs_cache*& cache, mbs_one_inits inits){
 	cache -> crossD = inits.crossD;
 }
 
-void fill_output_mbs_one(mbs_one_object& output, mat data, vec y, MAT mesh, vec theta, mbs_one_inits inits, vec m){
-	output.mesh = mesh; output.theta_hat = theta;
-	output.fitted = inits.O*theta; output.data = data; 
+void fill_output_mbs_one(mbs_one_object& output, mat data, vec y, MAT mesh, admm_out out, mbs_one_inits inits, vec m){
+	output.mesh = mesh; output.theta_hat = out.theta; output.uhat = out.u; output.rhohat = out.rho;
+	output.fitted = inits.O*out.theta; output.data = data; 
 	output.y = y; output.m = m; 
 }
 
@@ -78,7 +78,7 @@ void adapt_step(vec r_current, vec s_current, double rho_current, vec u_current,
 	double rho_next;
 	double r_norm = norm(r_current);
 	double s_norm = norm(s_current);
-	double tau = 2;
+	double tau = 2.0;
 	if (r_norm > 10*s_norm){
 		object.rho_next = tau*rho_current;
 		object.u_next = 1.0/tau*u_current;
@@ -93,22 +93,14 @@ void adapt_step(vec r_current, vec s_current, double rho_current, vec u_current,
 	}
 }
 
-vec admm_update(vec y, mbs_one_inits inits, vec* theta_init, double lambda, bool verbose){
-	// Set-up ADMM
-	vec theta(inits.ntheta);
-	/// Initialize theta
-	if (theta_init == NULL){
-		theta.fill(mean(y));
-	}
-	else{
-		theta = *theta_init;
-	}
+void admm_update(vec y, mbs_one_inits inits, vec & theta_init, double lambda, bool verbose, vec & u_init, double & rho_init, admm_out & out){
+	// Set-up ADMM: Initialize theta, u and rho. 
+	vec theta(inits.ntheta); theta = theta_init;
+  vec u(inits.rowsD); u = u_init;
+  double rho; rho = rho_init;
 	vec alpha = inits.D*theta;
-	vec u(inits.rowsD); 
-	u.fill(0.0);
 	int counter = 1;
-	int max_counter = 2000;
-	double rho = lambda/2.0; 
+	int max_counter = 3000;
 	vec b, uold;
 	vec primal_residual(inits.rowsD); vec dual_residual(inits.ntheta);
 	adaptstep stepobject;
@@ -129,21 +121,23 @@ vec admm_update(vec y, mbs_one_inits inits, vec* theta_init, double lambda, bool
 		eps_dual = TOL*(sqrt(inits.ntheta) + norm(inits.Dt*u));
 		eps_primal = TOL*(sqrt(inits.rowsD) + std::max(norm(inits.D*theta),norm(alpha)));
 
-		counter += 1;
-		if (counter>max_counter){
-			throw std::invalid_argument("Failed to converge!");
-		}
 		adapt_step(primal_residual, dual_residual, rho,u, stepobject);
 		rho = stepobject.rho_next; u = stepobject.u_next;
 		spcrosses = inits.crossO + rho * inits.crossD; 
+		
+		counter += 1;
+		if (counter>max_counter){
+		  Rcpp::Rcout << "ADMM reached max_counter at lambda = " << lambda << std::endl;
+		  break; 
+		}
 	}
 	if (verbose) Rcpp::Rcout << "Lambda= " << lambda << ", Counter = " << counter << std::endl;
-	return theta;
+	out.theta = theta; out.rho = rho; out.u = u;
 }
 
 // MBS Solution for single lambda
 
-void mbs_one(mat data, vec y, vec m, mbs_one_object & output, MAT mesh, vec* theta_init, double lambda, mbs_cache* cache, bool verbose){
+void mbs_one(mat data, vec y, vec m, mbs_one_object & output, MAT mesh, vec & u, double & rho, vec & theta_init, double lambda, mbs_cache* cache, bool verbose){
 	// MESH MUST BE SUPPLIED TO SINGLE LAMBDA SOLVER!
 	// CALL MBS(..., LAMBDAS = LAMBDA) FOR SINGLE SOLVE IN PRACTICE.
 
@@ -159,8 +153,9 @@ void mbs_one(mat data, vec y, vec m, mbs_one_object & output, MAT mesh, vec* the
 		use_cache(cache, inits);
 	}
 	// Get ADMM estimate of theta
-	vec theta = admm_update(y, inits, theta_init, lambda, verbose);
-	fill_output_mbs_one(output, data, y, mesh, theta, inits, m);
+	admm_out out;
+	admm_update(y, inits, theta_init, lambda, verbose, u, rho, out);
+	fill_output_mbs_one(output, data, y, mesh, out, inits, m);
 }
 
 vec mbs_predict(mbs_one_object model, mat data){
@@ -194,6 +189,7 @@ arma::vec create_lambdas(int n_lambda, mbs_one_inits inits, Rcpp::Nullable<arma:
 	if (lambdas.isNull()){
 		lambda_max = lam_max_pinv(inits.D, inits.Oty);
 		lambdavec = flipud(exp(linspace<vec>(log(lambda_max*0.0001), log(lambda_max),n_lambda)));
+		//lambdavec = exp(linspace<vec>(log(lambda_max*0.0001), log(lambda_max),n_lambda));
 		
 		if (verbose) Rcpp::Rcout << "Lambda_max = " << lambda_max << std::endl;
 	}
@@ -208,21 +204,19 @@ arma::vec create_lambdas(int n_lambda, mbs_one_inits inits, Rcpp::Nullable<arma:
 void mbs_path(mat data, vec y, vec m, MAT mesh, int n_lambda, vec lambdas, vec ftrue, mbs_object &output, mbs_one_inits inits, mbs_cache* cache, bool verbose){
 	mbs_one_object tempmodel; 
 	vec MSEs(n_lambda);
-	vec thetainit(inits.ntheta); thetainit.fill(mean(y));
-	
-	vec* theta_init; theta_init = new vec(inits.ntheta);
-	theta_init = &thetainit; *theta_init = thetainit;
-
+	vec theta_init(inits.ntheta); theta_init.fill(mean(y));
+	vec u_init(inits.rowsD); u_init.fill(0.0); 
+	double rho_init = lambdas[0]/5.0;
 	// Gradient-step size
-	double rho; // initialize at first lambda val
 	int i;
 	for (i=0; i<n_lambda; i++){
-		rho = lambdas[i];
-		sp_mat sp_crosses = inits.crossO+rho*inits.crossD; cache -> sp_crosses = sp_crosses; // Create/store sum of cross products
-		mbs_one(data,y,m, tempmodel, mesh, theta_init, rho, cache, verbose);
+		sp_mat sp_crosses = inits.crossO+rho_init*inits.crossD; cache -> sp_crosses = sp_crosses; // Create/store sum of cross products
+		mbs_one(data,y,m, tempmodel, mesh, u_init, rho_init, theta_init, lambdas[i], cache, verbose);
 		output.models.push_back(tempmodel);
 		MSEs[i] = mbs_mse(tempmodel, ftrue);
-		thetainit = tempmodel.theta_hat; // theta_init points to thetainit
+		theta_init = tempmodel.theta_hat; // theta_init points to thetainit
+		rho_init = tempmodel.rhohat;
+		u_init = tempmodel.uhat;
 	}
 	fill_output_mbs(output, MSEs, lambdas);
 }
@@ -269,15 +263,14 @@ void mbs_fit_optimal(mat data, vec y, vec m, mbs_one_object &best_model, MAT mes
 	// FIT OPTIMAL LAMBDA OVER TRAINING SET
 	uword lowestMSE = mean_mses.index_min();
 	// MBS_ONE() requires theta_init as pointer
-	vec thetainit(inits.ntheta); thetainit.fill(mean(y));
-	vec* theta_init; theta_init = new vec(inits.ntheta);
-	theta_init = &thetainit; *theta_init = thetainit;
-
+	vec theta_init(inits.ntheta); theta_init.fill(mean(y));
+	vec u_init(inits.rowsD); u_init.fill(0.0); 
+	double rho_init = lambdas[0]/5.0;
 	double best_lambda = lambdas[lowestMSE];
 	
 	if (verbose) Rcpp::Rcout << "Best lambda = " << best_lambda << std::endl;
 	
-	mbs_one(data,y,m,best_model, mesh, theta_init, best_lambda, cache, verbose);
+	mbs_one(data,y,m,best_model, mesh, u_init, rho_init, theta_init, best_lambda, cache, verbose);
 }
 
 // GIVEN SOLUTIONS TO LAMBDAS, PREDICT TESTING DATA AND MEASURE ACCURACY

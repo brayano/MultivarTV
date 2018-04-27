@@ -16,7 +16,7 @@ using namespace arma;
 typedef std::vector<int> VEC;
 typedef arma::mat MAT;
 #define EPS 0.0001
-#define TOL 0.001
+#define TOL 0.0001
 
 // FUNCTION DECLARATION 
 

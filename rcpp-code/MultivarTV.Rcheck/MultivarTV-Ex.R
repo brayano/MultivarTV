@@ -55,7 +55,7 @@ base::assign(".ptime", proc.time(), pos = "CheckExEnv")
 set.seed(117)
 x <- matrix(runif(100),ncol = 2)
 y <- matrix(runif(50),ncol=1)
-m <- matrix(c(3,3))
+m <- matrix(c(3,3),ncol=1)
 
 ## Find Total Variation Solution over range of lambdas and whole data set
 mvtv_fold1 <- mvtv(x,y,m,folds=1, verbose = FALSE)
@@ -76,7 +76,7 @@ flush(stderr()); flush(stdout())
 
 base::assign(".ptime", proc.time(), pos = "CheckExEnv")
 ### Name: predict.mvtv
-### Title: MVTV Predict Function
+### Title: MVTV Predict for Fitting Observed/New Data
 ### Aliases: predict.mvtv
 
 ### ** Examples

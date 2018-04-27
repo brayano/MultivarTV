@@ -1,4 +1,4 @@
 name	user	system	elapsed
 MultivarTV-package	0.001	0.000	0.001	
-mvtv.default	2.055	0.244	2.329	
-predict.mvtv	1.724	0.195	1.928	
+mvtv.default	0.319	0.024	0.346	
+predict.mvtv	0.273	0.032	0.323	

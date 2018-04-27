@@ -4,6 +4,9 @@ gen_mesh                Generate a mesh
 mvtv                    MVTV Generic Class
 mvtv.default            Default Multivariate Total Variation Denoising
                         Solver
-plotFits                Plotting Fitted Surface, p=1
+mvtv_default            Default Multivariate Total Variation Denoising
+                        Solver for use by S3 Generic
+plot.mvtv               Plotting Fitted Surface, p=1
 plotResiduals           Plotting Residuals
-predict.mvtv            MVTV Predict Function
+predict.mvtv            MVTV Predict for Fitting Observed/New Data
+predict_mvtv            MVTV Predict for use by S3 Generic Function
