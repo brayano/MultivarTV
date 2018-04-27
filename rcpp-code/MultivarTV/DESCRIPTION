@@ -7,7 +7,7 @@ Author: Brayan Ortiz
 Maintainer: Brayan Ortiz <brayan@uw.edu>
 Description: Efficient procedures written in C++ for fitting approximate solutions to multivariate total variation denoising problems. The algorithm uses the alternating direction method of multipliers (ADMM), as described by Boyd et al. (2011).
 License: GPL (>= 2)
-Imports: Rcpp (>= 0.12.16), scatterplot3d
+Imports: Rcpp (>= 0.12.16), plot3D
 LinkingTo: Rcpp, RcppArmadillo
 RoxygenNote: 6.0.1
 Suggests: knitr,

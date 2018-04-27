@@ -98,7 +98,6 @@ void admm_update(vec y, mbs_one_inits inits, vec & theta_init, double lambda, bo
 	vec theta(inits.ntheta); theta = theta_init;
   vec u(inits.rowsD); u = u_init;
   double rho; rho = rho_init;
-  
 	vec alpha = inits.D*theta;
 	int counter = 1;
 	int max_counter = 3000;
@@ -190,6 +189,7 @@ arma::vec create_lambdas(int n_lambda, mbs_one_inits inits, Rcpp::Nullable<arma:
 	if (lambdas.isNull()){
 		lambda_max = lam_max_pinv(inits.D, inits.Oty);
 		lambdavec = flipud(exp(linspace<vec>(log(lambda_max*0.0001), log(lambda_max),n_lambda)));
+		//lambdavec = exp(linspace<vec>(log(lambda_max*0.0001), log(lambda_max),n_lambda));
 		
 		if (verbose) Rcpp::Rcout << "Lambda_max = " << lambda_max << std::endl;
 	}

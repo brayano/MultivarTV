@@ -351,7 +351,7 @@ vec mypinv(sp_mat a, vec Oty){
 double lam_max_pinv(arma::sp_mat a, arma::vec Oty){
 	vec A = mypinv(a,Oty);
   double tune = norm(A, "inf"); // else "inf"
-  return 3.0*tune; 
+  return 5.0*tune; 
 }
 
 vec rowmean(mat A){

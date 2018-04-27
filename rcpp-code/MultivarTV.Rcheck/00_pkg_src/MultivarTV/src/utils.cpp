@@ -350,11 +350,8 @@ vec mypinv(sp_mat a, vec Oty){
 
 double lam_max_pinv(arma::sp_mat a, arma::vec Oty){
 	vec A = mypinv(a,Oty);
-  double tune = norm(A, 1); // else "inf"
-  return tune; 
-	//vec Apos = abs(A);
-	//double tune = max(Apos);
-	//return pow(tune,2); 
+  double tune = norm(A, "inf"); // else "inf"
+  return 5.0*tune; 
 }
 
 vec rowmean(mat A){
@@ -367,32 +364,6 @@ vec rowmean(mat A){
 }
 
 // CROSS-VALIDATION FUNCTIONS/STRUCTS
-// Modified to return list in case we want to expose to R.
-Rcpp::List kfold(int k, arma::mat data, arma::vec y){
-	int i;
-	int ntest = data.n_rows/k;
-	arma::field<arma::mat> Xtrain(k);
-	arma::field<arma::mat> Xtest(k);
-	arma::field<arma::vec> Ytrain(k);
-	arma::field<arma::vec> Ytest(k);
-	arma::mat datamat = arma::join_horiz(data,y);
-	arma::mat datamat_shuffled = arma::shuffle(datamat, 1); // randomly shuffle rows
-	for (i=0; i<k; i++){
-		arma::mat Xshuffled = datamat_shuffled.cols(0,data.n_cols-1);
-		arma::vec Yshuffled = datamat_shuffled.col(data.n_cols);
-		int first = i*ntest; int last = (i+1)*ntest-1;
-		Xtest[i] = Xshuffled.rows(first, last ) ;
-		Ytest[i] = Yshuffled.rows(first, last) ;
-
-		Xshuffled.shed_rows(first, last);
-		Yshuffled.shed_rows(first, last);
-		Xtrain[i] = Xshuffled ;
-		Ytrain[i] = Yshuffled ;
-	}
-	return Rcpp::List::create(Rcpp::Named("Xtest")=Xtest,Rcpp::Named("Xtrain")=Xtrain,
-                           Rcpp::Named("Ytest")=Ytest,Rcpp::Named("Ytrain")=Ytrain);
-}
-
 arma::vec kfoldinds( int n, int k ) {
   arma::vec indices(n);
   
