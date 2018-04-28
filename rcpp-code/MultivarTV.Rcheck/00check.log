@@ -69,7 +69,8 @@ Non-standard file/directory found at top level:
 * checking files in ‘vignettes’ ... OK
 * checking examples ... OK
 * checking for unstated dependencies in vignettes ... NOTE
-'library' or 'require' call not declared from: ‘fields’
+'library' or 'require' calls not declared from:
+  ‘fields’ ‘genlasso’
 * checking package vignettes in ‘inst/doc’ ... OK
 * checking re-building of vignette outputs ... OK
 * checking PDF version of manual ... OK

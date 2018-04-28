@@ -115,8 +115,8 @@ plot.mvtv <- function(x, ..., addmesh = FALSE, adddata = TRUE, lambda = NULL) {
     fitData <- predict_mvtv(mvtvobject = mod2plt,data = as.matrix(newData), mesh = mvtvmodel$mesh)
     delta <- mvtvmodel$mesh[2] - mvtvmodel$mesh[1]
     
-    plot(fitData~newData,type='l',col="blue", lwd= 2)
-    if (adddata==TRUE) points(mvtvmodel$y~mvtvmodel$data,ylab="y",xlab="x",pch=16,cex=0.5)
+    plot(fitData~newData,type='l',col="blue", lwd= 2, ylab="y",xlab="x", ylim=c(min(mvtvmodel$y),max(mvtvmodel$y)))
+    if (adddata==TRUE) points(mvtvmodel$y~mvtvmodel$data,pch=16,cex=0.5)
     if (addmesh==TRUE) abline(v = mvtvmodel$mesh[-mvtvmodel$m] + delta/2,col="grey",lwd=0.5,lty=2)
   }
   else if (dim(mvtvmodel$data)[2] == 2) {

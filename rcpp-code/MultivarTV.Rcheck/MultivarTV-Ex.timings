@@ -1,4 +1,4 @@
 name	user	system	elapsed
-MultivarTV-package	0.001	0.000	0.001	
-mvtv.default	0.319	0.024	0.346	
-predict.mvtv	0.273	0.032	0.323	
+MultivarTV-package	0	0	0	
+mvtv.default	0.389	0.037	0.444	
+predict.mvtv	0.277	0.026	0.319	

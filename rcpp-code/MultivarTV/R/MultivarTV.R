@@ -52,6 +52,11 @@ mvtv.default <- function(data, y, m= NULL, ... , mesh = NULL, n_lambda = 100, ft
   for (i in 1:n_lambda) outlambdas[i] <- model$models[[i]]$lambda
   model$lambdas <- outlambdas
   
+  se1 <- sd(model$cv.mses)/sqrt(n_lambda)
+  right <- model$cv.mses[model$lambda_minmse_ind]+se1
+  cands <- which(model$cv.mses <= right)[-model$lambda_minmse_ind]
+  model$lambda_1se_ind <- cands[length(cands)]
+  
   class(model) <- "mvtv"
   return(model)
 }
@@ -63,10 +68,11 @@ mvtv.default <- function(data, y, m= NULL, ... , mesh = NULL, n_lambda = 100, ft
 #' @export
 plotResiduals <- function(mvtvmodel) {
   if (class(mvtvmodel) != "mvtv") stop("Input must be a 'mvtv' model object.")
-  
-  plot(mvtvmodel$fitted,mvtvmodel$residuals,xlab="Fitted",ylab="Residuals",pch=1,cex=0.5)
-  loessob <- loess(mvtvmodel$residuals~mvtvmodel$fitted)
-  lines(mvtvmodel$fitted,predict(loessob),col="blue",lwd=1)
+  fit_srt <- sort(mvtvmodel$fitted,index.return=TRUE)
+  res_srt <- mvtvmodel$residuals[fit_srt$ix]
+  plot(fit_srt$x,res_srt,xlab="Fitted",ylab="Residuals",pch=1,cex=0.5)
+  loessob <- loess(res_srt~fit_srt$x)
+  lines(fit_srt$x,predict(loessob),col="blue",lwd=1)
   abline(h=0,lty=2,lwd=1)
   
   #print(apply(data,2,mean))
@@ -115,8 +121,8 @@ plot.mvtv <- function(x, ..., addmesh = FALSE, adddata = TRUE, lambda = NULL) {
     fitData <- predict_mvtv(mvtvobject = mod2plt,data = as.matrix(newData), mesh = mvtvmodel$mesh)
     delta <- mvtvmodel$mesh[2] - mvtvmodel$mesh[1]
     
-    plot(fitData~newData,type='l',col="blue", lwd= 2)
-    if (adddata==TRUE) points(mvtvmodel$y~mvtvmodel$data,ylab="y",xlab="x",pch=16,cex=0.5)
+    plot(fitData~newData,type='l',col="blue", lwd= 2, ylab="y",xlab="x", ylim=c(min(mvtvmodel$y),max(mvtvmodel$y)))
+    if (adddata==TRUE) points(mvtvmodel$y~mvtvmodel$data,pch=16,cex=0.5)
     if (addmesh==TRUE) abline(v = mvtvmodel$mesh[-mvtvmodel$m] + delta/2,col="grey",lwd=0.5,lty=2)
   }
   else if (dim(mvtvmodel$data)[2] == 2) {
