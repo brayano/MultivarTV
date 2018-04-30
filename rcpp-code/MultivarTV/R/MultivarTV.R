@@ -54,8 +54,8 @@ mvtv.default <- function(data, y, m= NULL, ... , mesh = NULL, n_lambda = 100, ft
   
   se1 <- sd(model$cv.mses)/sqrt(n_lambda)
   right <- model$cv.mses[model$lambda_minmse_ind]+se1
-  cands <- which(model$cv.mses <= right)[-model$lambda_minmse_ind]
-  model$lambda_1se_ind <- cands[length(cands)]
+  cands <- which(model$cv.mses <= right)
+  model$lambda.1se <- model$lambdas[cands[length(cands)]]
   
   class(model) <- "mvtv"
   return(model)
@@ -96,7 +96,7 @@ plot.mvtv <- function(x, ..., addmesh = FALSE, adddata = TRUE, lambda = NULL) {
     lambdas <- numeric(nlam)
     for (i in 1:nlam) lambdas[nlam-i+1] <- mvtvmodel$lambdas[i]
     if (lambda %in% lambdas){
-      ind <- which(lambda==lambdas); mod2plt <- mvtvmodel$models[[ind]]
+      ind <- which(lambda==lambdas); mod2plt <- mvtvmodel$models[[100-ind+1]]
       mod2plt$mesh <- mvtvmodel$mesh
     }
     else{
