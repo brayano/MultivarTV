@@ -1,16 +1,19 @@
 ---
-title: "Introduction to $\bf{MultivarTV}"
+title: "Introduction to MultivarTV"
 author: "Brayan Ortiz"
 date: "`r Sys.Date()`"
 output: 
   rmarkdown::html_vignette:
     fig_caption: yes
     toc: true
+bibliography: MultivarTV.bib
 vignette: >
-  %\VignetteIndexEntry{Vignette Title}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{MultivarTV-intro}
   %\VignetteEncoding{UTF-8}
   %\VignetteKeywords{R, C++, Armadillo, total variation, thin plate splines, denoising, piece-wise constant signals, signal processing}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = FALSE}
@@ -50,13 +53,13 @@ pcwise <- function(vecx){
 }
 ```
 
-## Abstract
+# Abstract
 
 Total variation is a widely applicable regularization problem that is commonly used in signal and image denoising. We introduce the $\tt{R}$ package $\bf{MultivarTV}$, which is used for solving the multivariate total variation problem. Using an alternating direction method of multipliers algorithm (ADMM), we are able to solve problems large in sample size and number of features. 
 
-## Introduction
+# Introduction
 
-To introduce total variation, we consider the univariate or one-dimensional case first. We begin by observing 
+To introduce total variation, we consider the univariate or one-dimensional case first. We begin by observing a response $y_i$ as a function of covariates $x_i\in \mathcal{X}$:
 \[
 y_i=f(x_i)+\epsilon_i,
 \]
@@ -64,7 +67,7 @@ where $\mathbb{E}[\epsilon_i]=0$, $\mathbb{var}[\epsilon_i]=\sigma^2<\infty$ and
 \[
 \hat{f} = \min_{f\in\mathcal{F}} \frac{1}{N}\sum_{i=1}^N \left(y_i-f(x_i)\right)^2+\lambda P(f),
 \]
-where $P(f)=\int|f^{(1)}(t)|\partial t$ (i.e. the total variation norm). $\bf{MultivarTV}$ in the univariate setting uses a mesh based solution, which is described by Ortiz and Simon (2018). For a mesh based solution, we consider a set of $m$ points, $d_1,\ldots,d_m$ that need not have been observed and aim to estimate their value $\theta_j = f(d_j)$. Let $\theta_{(i)}= \theta_j$ such that $d_j\le x_i<d_{j+1}$ (nearest neighbor). The mesh based solution to the univariate problem approximates $f(x_1),\ldots,f(x_N)$ by the values $\hat{\theta}=(\hat{\theta}_{(1)},\ldots,\hat{\theta}_{(N)})$:
+where $P(f)=\int|f^{(1)}(t)|\partial t$ (i.e. the total variation norm). $\bf{MultivarTV}$ in the univariate setting uses a mesh based solution, which is described in @ortiz2018mbs. For a mesh based solution, we consider a set of $m$ points, $d_1\le \ldots \le d_m$ such that $d_1 \le x_i$ and $d_m\ge x_i$ for all $ x_i\in \mathcal{X} $. The points $d_i$ need not have been observed. We aim to estimate their value $\theta_j = f(d_j)$. Let $\theta_{(i)}= \theta_j$ such that $d_j\le x_i<d_{j+1}$ (nearest neighbor). The mesh based solution to the univariate problem approximates $f(x_1),\ldots,f(x_N)$ by the values $\hat{\theta}=(\hat{\theta}_{(1)},\ldots,\hat{\theta}_{(N)})$:
 \[
 \hat{\theta} = \min_{\theta\in \mathbb{R}^m} \frac{1}{N}\sum_{i=1}^N \left(y_i-\theta_{(i)}\right) + \lambda \sum_{j=1}^m \left|\theta_{j+1}-\theta_j\right|,
 \]
@@ -77,7 +80,7 @@ D_m = \begin{bmatrix}
     0 & 0 & 0 & ... & -1 & 1 
     \end{bmatrix}\in \mathbb{R}^{m-1\times m}.
 \]
-Ortiz and Simon (2018) show the objective is quickly solved using an ADMM algorithm for $m\ge\sqrt{N}$ (with regular spacing), which is enough for statistical optimality of the solution $\hat{\theta}$. 
+The optimization is quickly solved using an alternative direction method of multipliers (ADMM) algorithm [@boyd2011distributed]. Furthermore, using $m\ge\sqrt{N}$ (with regular spacing), is enough for statistical optimality of the solution $\hat{\theta}$ [@ortiz2018mbs]. 
 
 Since the optimization problem encourages adjacent points $\theta$ to be the same, we draw piecewise-constant fits as our solution. To begin our demonstration, we generate some data from a piecewise constant function:
 
@@ -98,20 +101,21 @@ fit <- mvtv(x,y,m,verbose=FALSE) # Verbose = FALSE to suppress algorithm details
 
 We include an S3 generic $\tt{plot}$ function with additional flags. By default, we plot the predicted surface for the model with minimum cross-validated mean squared error and overlay observed data:
 
-```{r fig1, fig.cap = "Figure 1. Total variation solution for piecewise constant function at best cross-validated model. ", fig.width=3.5}
+```{r fig1, fig.cap = "Figure 1. Total variation solution for piecewise constant function at best cross-validated model.", fig.width=3.5}
 plot(fit)
 ```
 
 The $\tt{plot}$ function can also be used to see fits at other values of $\lambda$, such as lambda corresponding to 1 standard error rule or an arbitrary number:
 
 ```{r fig2, fig.cap = "Figure 2. Total variation solution for piecewise constant function at other solutions.", fig.width=7}
-plot(fit, lambda = fit$lambdas[fit$lambda_1se_ind])
+par(mfrow=c(1,2))
+plot(fit, lambda = fit$lambda.1se)
 title(main = "One standard error rule")
 plot(fit, lambda = 2.0)
 title(main = "Arbitrary value: 2.0")
 ```
 
-Aside from the number of knots, the user can also define the mesh itself. Note that by setting $m=N$ and $d_1=x_1,\ldots,d_N=x_N$, we return the fused lasso solution (tibs): 
+Aside from the number of knots, the user can also define the mesh itself. In Figure 3, we show that by setting $m=N$ and $d_1=x_1,\ldots,d_N=x_N$, we return the fused lasso solution [@tibshirani2005fusedlasso, @arnold2014genlasso]. 
 
 ```{r fig3, fig.cap = "Figure 3. (a) Fused lasso given by MultivarTV. (b) Fused lasso given by genlasso.", message=FALSE, fig.width=7}
 par(mfrow=c(1,2))
@@ -132,7 +136,7 @@ title(sub = "(b)")
 ```
 
 
-## $\bf{MultivarTV}$ for Multivariate Data
+# $\bf{MultivarTV}$ for Multivariate Data
 
 For multivariate data, the total variation problem becomes difficult, which can be explained by seeing what changes in the bivariate setting. A total variation problem seeks to constrain the amount a function changes or varies in it's first derivative, which in the univariate setting means setting
 \[
@@ -142,7 +146,7 @@ which we approximate using first differences as $\sum_{j=1}^m \left|\theta_{j+1}
 \[
 P(f) = \int \left|\frac{\partial}{\partial x_1}  f(x_1, x_2) \right|\partial x_1\partial x_2 +\int \left|\frac{\partial}{\partial x_2}  f(x_1, x_2) \right|\partial x_1\partial x_2+\int \left|\frac{\partial}{\partial x_1 \partial x_2}  f(x_1, x_2) \right|\partial x_1\partial x_2.
 \]
-$\bf{MultivarTV}$ continues to approximate $P(f)$ using differences across a mesh. However, a bivariate mesh is a lattice: for $x_{1,1},\ldots,x_{1,N}$, we create a mesh $d_{1,1},\ldots,d_{1,m_1}$ that contains all of $x_1$ (and do the same for $x_2$). We merge $d_1$ and $d_2$ into a lattice such that 
+As dimensionality increases, the number of partials also increases in $P(f)$. However, $\bf{MultivarTV}$ continues to approximate $P(f)$ using differences across a mesh: in the bivariate case, for $x_{1,1},\ldots,x_{1,N}$, we create a mesh $d_{1,1},\ldots,d_{1,m_1}$ that contains all of $x_1$ (and do the same for $x_2$) and we merge the two meshes into a lattice such that 
 \[
 \theta = \begin{bmatrix}
   f(d_{11},d_{21}) & f(d_{12},d_{21})  & \ldots  & f(d_{1m_1},d_{21}) \\
@@ -159,9 +163,9 @@ If we flatten the matrix $\theta\in \mathbb{R}^{m_1\times m_2}$ into a vector $\
 \[
 \hat{\theta^*} = \min_{\theta^*\in \mathbb{R}^{m_1 m_2}} \frac{1}{N}\sum_{i=1}^N \left(y_i-\theta^*_{(i)}\right)^2 + \lambda \|D^*\theta^*\|_1.
 \]
-The same can be done for $p>2$. For details, see Ortiz and Simon (2018). We can fit the multivariate problem using the same ADMM algorithm as in the univariate case, so $\tt{mvtv}$ uses the same algorithm regardless of dimensionality. 
+The same can be done for $p>2$. For details, see @ortiz2018mbs. We can fit the multivariate problem using the same ADMM algorithm as in the univariate case, so $\tt{mvtv}$ uses the same algorithm regardless of dimensionality. 
 
-### Towers Function
+## Towers Function
 
 We want to fit a multivariate surface as the solution to a total variation problem. One surface that we can use for demonstration is one that resembles four towers on a plain. In Figure 1, we plot the towers as a mesh and overlay points generated from the towers function with noise. 
 
@@ -182,9 +186,9 @@ scatter3D(z1,z2,ynoisy,theta=30,phi=30,xlab="x1",ylab="x2",zlab="y",cex=1,pch=20
 ```
 
 
-The noisy towers can be fit well by a total variation solution. In this example, we will also compare the total variation fit against a thin plate spline, the generalization of smoothing splines. Based on Figure 5, we indeed get four towers from our total variation solution. In Figure 6, we see the thin plate spline solution, which is much more smooth and provides hills instead of towers. 
+The noisy towers can be fit well by a total variation solution. In this example, we will also compare the total variation fit against a thin plate spline, the generalization of smoothing splines [@duchon1977splines] fit using the **fields** package [@furrer2009fields]. Based on Figure 5, we indeed get four towers from our total variation solution. In Figure 6, we see the thin plate spline solution, which is much more smooth and provides hills instead of towers. 
 
-```{r figure5, echo=TRUE, fig.cap="Figure 5. Total variation solution for noisy sombrero." , fig.width=4, fig.height = 4}
+```{r figure5, echo=TRUE, fig.cap="Figure 5. Total variation solution for noisy towers." , fig.width=4, fig.height = 4}
 set.seed(117)
 mym <- matrix(rep(sqrt(length(ynoisy)),2),ncol=1)
 data <- cbind(z1,z2)
@@ -193,15 +197,17 @@ plot(tvmod,adddata = TRUE)
 ```
 
 
-```{r figure6,echo=TRUE, fig.cap="Figure 6. Thin plate spline solution for noisy sombrero." , fig.width=4, fig.height = 4}
+```{r figure6,echo=TRUE, fig.cap="Figure 6. Thin plate spline solution for noisy towers." , fig.width=4, fig.height = 4}
 fit <- Tps(data,ynoisy)
 out.p <- predictSurface(fit, xy = c(1,2))
 plot.surface(out.p, type="p")
 ```
 
-### Beyond Bivariate: Limitations
+# Notes and Limitations
 
-The primary implementation function $\tt{mvtv}$ accepts any number of features. However, there are some limitations. First, the generic $\tt{plot}$ function does not accept $\tt{mvtv}$-objects built on $p>2$. However, we can still plot the residuals vs fitted values for any size problem using the $\tt{plotResiduals}$ function:
+The regression model used by **MultivarTV** performs optimally when the distance between the observations and the mesh points is small. In order to minimize that distance, we need to increase the number of knots. **MultivarTV** allows the user to specify $m_j$ knots per feature $x_j$. In our examples, we have been safely using the same number of knots per feature, since the features we generate have similar ranges. As we suspect some features to have greater range or variability than others, it will be best practice to choose a same large number of knots per each feature and allow regularization to smooth the solution. However, as we discuss next, the number of features does impact the functionality of **MultivarTV**. 
+
+The primary implementation function $\tt{mvtv}$ accepts any number of features. However, the generic $\tt{plot}$ function does not accept $\tt{mvtv}$-objects built on $p>2$. We can still plot the residuals versus fitted values for any size problem using the $\tt{plotResiduals}$ function:
 
 ```{r figure7, echo=TRUE, fig.cap= "Figure 7. Residuals plot for perfectly noisy data.", fig.width=3.5}
 set.seed(117)
@@ -217,6 +223,8 @@ tv3 <- mvtv(data,y,m,verbose = FALSE)
 plotResiduals(tv3)
 ```
 
-For uniform noisy data regressed on uniform noisy data, we expect a flat line fit to the mean, which is what we see (with some small wiggling). 
+For uniform noisy data regressed on uniform noisy trivariate data, we expect fitted values at the mean and evenly dispersed residuals, which is what we see with some small wiggling (Figure 7). 
 
-Another limitation is scaling: the number of optimization parameters is $m^p$, which means for modest $m$ and large $p$ the difference matrices (even though they are stored as sparse matrices) become larger than most personal laptops can store. At experimentation stages, it may be best practice to let $m=N^{\frac{1}{4}}$.  
+The larger issue with the number of features has to do with scaling. Using the same number of knots for each feature, the number of optimization parameters is $m^p$. For modest $m$ and large $p$, the difference matrices (even though they are stored as sparse matrices) become larger than most personal laptops can store. Although we recommend an aggressive number of knots for a good solution, it may be best practice to let $m=N^{\frac{1}{4}}$ at experimental stages.  
+
+# Bibliography
