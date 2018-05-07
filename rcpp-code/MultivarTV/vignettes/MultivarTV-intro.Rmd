@@ -80,7 +80,7 @@ D_m = \begin{bmatrix}
     0 & 0 & 0 & ... & -1 & 1 
     \end{bmatrix}\in \mathbb{R}^{m-1\times m}.
 \]
-The optimization is quickly solved using an alternative direction method of multipliers (ADMM) algorithm [@boyd2011distributed]. Furthermore, using $m\ge\sqrt{N}$ (with regular spacing), is enough for statistical optimality of the solution $\hat{\theta}$ [@ortiz2018mbs]. 
+The optimization is quickly solved using an alternative direction method of multipliers (ADMM) algorithm [@boyd2011distributed]. Furthermore, using $m> N^{\frac{2}{3}}$ (with regular spacing), is enough for statistical optimality of the solution $\hat{\theta}$ [@ortiz2018mbs]. 
 
 Since the optimization problem encourages adjacent points $\theta$ to be the same, we draw piecewise-constant fits as our solution. To begin our demonstration, we generate some data from a piecewise constant function:
 
@@ -93,7 +93,7 @@ y <- matrix(pcwise(x) + rnorm(N,0,0.1),ncol=1)
 
 To fit a total variation solution to this data, we need only use the $\tt{mvtv}$ function, which by default will perform 5-fold validation and stores the solution path for each $\lambda$. Let $m = 20$ for this problem:
 
-```{r mvtv1, echo=FALSE}
+```{r mvtv1, echo=TRUE}
 set.seed(123) # Setting a seed for cross-validation procedure
 m <- matrix(20,ncol=1)
 fit <- mvtv(x,y,m,verbose=FALSE) # Verbose = FALSE to suppress algorithm details
@@ -105,7 +105,7 @@ We include an S3 generic $\tt{plot}$ function with additional flags. By default,
 plot(fit)
 ```
 
-The $\tt{plot}$ function can also be used to see fits at other values of $\lambda$, such as lambda corresponding to 1 standard error rule or an arbitrary number:
+The $\tt{plot}$ function can also be used to see fits at other values of $\lambda$, such as lambda corresponding to 1 standard error rule (for greater parsimony) or an arbitrary number:
 
 ```{r fig2, fig.cap = "Figure 2. Total variation solution for piecewise constant function at other solutions.", fig.width=7}
 par(mfrow=c(1,2))
@@ -138,32 +138,15 @@ title(sub = "(b)")
 
 # $\bf{MultivarTV}$ for Multivariate Data
 
-For multivariate data, the total variation problem becomes difficult, which can be explained by seeing what changes in the bivariate setting. A total variation problem seeks to constrain the amount a function changes or varies in it's first derivative, which in the univariate setting means setting
+For multivariate data, the total variation problem becomes difficult. Let $(x_1,\dlots,x_p)$ denote $p$ covariates. Furthermore, we define a multi-index $r=(r_1,\ldots,r_p)$, where $r_j\in \{0,1\}$ and $|r| = \sum_{j=1}^p r_j$. In our approach, we approximate the penalty
 \[
-P(f) = \int |f^{(1)}(x)|\partial x < M,
+P(f) = \sum_{r\in \{0,1\}^p} \int \left|\frac{\partial^{|r|}}{\partial^{r_1}x_1 \ldots \partial^{r_p}x_p}f(x)\right|\partial x_1\ldots \partial x_p,
 \]
-which we approximate using first differences as $\sum_{j=1}^m \left|\theta_{j+1}-\theta_j\right|$ in our problem. In the bivariate setting, a function $f(x_1, x_2)$ has three first derivatives: $\frac{\partial}{\partial x_1}$, $\frac{\partial}{\partial x_2}$, and $\frac{\partial}{\partial x_1\partial x_2}$. Hence, our penalty parameter becomes
+where $\{0,1\}^p\equiv \{0,1\} \times \ldots \times \{0,1\}$, i.e. the Cartesian product. In the bivariate setting, our penalty parameter becomes
 \[
 P(f) = \int \left|\frac{\partial}{\partial x_1}  f(x_1, x_2) \right|\partial x_1\partial x_2 +\int \left|\frac{\partial}{\partial x_2}  f(x_1, x_2) \right|\partial x_1\partial x_2+\int \left|\frac{\partial}{\partial x_1 \partial x_2}  f(x_1, x_2) \right|\partial x_1\partial x_2.
 \]
-As dimensionality increases, the number of partials also increases in $P(f)$. However, $\bf{MultivarTV}$ continues to approximate $P(f)$ using differences across a mesh: in the bivariate case, for $x_{1,1},\ldots,x_{1,N}$, we create a mesh $d_{1,1},\ldots,d_{1,m_1}$ that contains all of $x_1$ (and do the same for $x_2$) and we merge the two meshes into a lattice such that 
-\[
-\theta = \begin{bmatrix}
-  f(d_{11},d_{21}) & f(d_{12},d_{21})  & \ldots  & f(d_{1m_1},d_{21}) \\
-  f(d_{11},d_{22}) & f(d_{21},d_{22}) & \ldots & f(d_{1m_1},d_{22})  \\
-   \vdots &  \ddots &  \vdots &  \vdots \\
-     f(d_{11},d_{2m_2}) & f(d_{12},d_{2m_2}) & ... &  f(d_{1m_1},d_{2m_2}) 
-    \end{bmatrix} \in \mathbb{R}^{m_1\times m_2}.
-\]
-As before, $\theta_{(i)}$ defines the value of the function on the lattice point nearest a point $x_i$. Using the first difference matrix defined in the introduction, a mesh based solution to the bivariate problem roughly solves the following minimization problem:
-\[
-\hat{\theta} = \min_{\theta\in \mathbb{R}^{m_1\times m_2}} \frac{1}{N}\sum_{i=1}^N \left(y_i-\theta_{(i)}\right)^2 + \lambda \left( \|D_{m_1}\theta\|_1+\|D_{m_2}\theta^\top\|_1+\|D_{m_1}\theta D_{m_2}^\top \|_1 \right).
-\]
-If we flatten the matrix $\theta\in \mathbb{R}^{m_1\times m_2}$ into a vector $\theta^*\in \mathbb{R}^{m_1m_2}$ and carefully construct a difference matrix $D^*$, we can rewrite the minimization as
-\[
-\hat{\theta^*} = \min_{\theta^*\in \mathbb{R}^{m_1 m_2}} \frac{1}{N}\sum_{i=1}^N \left(y_i-\theta^*_{(i)}\right)^2 + \lambda \|D^*\theta^*\|_1.
-\]
-The same can be done for $p>2$. For details, see @ortiz2018mbs. We can fit the multivariate problem using the same ADMM algorithm as in the univariate case, so $\tt{mvtv}$ uses the same algorithm regardless of dimensionality. 
+When $P(f)$ is finite, solutions have bounded total variation. $\bf{MultivarTV}$ continues to approximate $P(f)$ using differences across a mesh. For details, see @ortiz2018mbs. We can fit the multivariate problem using the same ADMM algorithm as in the univariate case, so $\tt{mvtv}$ uses the same algorithm regardless of dimensionality. 
 
 ## Towers Function
 
@@ -190,7 +173,8 @@ The noisy towers can be fit well by a total variation solution. In this example,
 
 ```{r figure5, echo=TRUE, fig.cap="Figure 5. Total variation solution for noisy towers." , fig.width=4, fig.height = 4}
 set.seed(117)
-mym <- matrix(rep(sqrt(length(ynoisy)),2),ncol=1)
+mym <- floor(length(ynoisy)^{2/3})
+mym <- matrix(rep(mym,2),ncol=1)
 data <- cbind(z1,z2)
 tvmod <- mvtv(data,ynoisy,mym,verbose=FALSE)
 plot(tvmod,adddata = TRUE)
@@ -203,13 +187,30 @@ out.p <- predictSurface(fit, xy = c(1,2))
 plot.surface(out.p, type="p")
 ```
 
+As we increase the sample size to $N=5,000$, the total variation solution improves (Figure 7). The thin plate spline solution takes a large amount of time to calculate, so we do not present it.
+
+```{r figure7, echo=TRUE, fig.cap="Figure 7. Total variation solution for noisy towers with many data points.", fig.width=4, fig.height=4}
+set.seed(117)
+z1 <- runif(5000)
+z2 <- runif(5000)
+z3 <- towers(z1,z2)
+ynoisy <- z3 + rnorm(length(z3),0,0.5)
+data <- cbind(z1,z2)
+
+mym <- floor(length(ynoisy)^{1/2})
+mym <- matrix(rep(mym,2),ncol=1)
+tvmod <- mvtv(data,ynoisy,mym,verbose=FALSE)
+plot(tvmod,adddata = FALSE)
+```
+
+
 # Notes and Limitations
 
-The regression model used by **MultivarTV** performs optimally when the distance between the observations and the mesh points is small. In order to minimize that distance, we need to increase the number of knots. **MultivarTV** allows the user to specify $m_j$ knots per feature $x_j$. In our examples, we have been safely using the same number of knots per feature, since the features we generate have similar ranges. As we suspect some features to have greater range or variability than others, it will be best practice to choose a same large number of knots per each feature and allow regularization to smooth the solution. However, as we discuss next, the number of features does impact the functionality of **MultivarTV**. 
+The regression model used by **MultivarTV** performs optimally when the distance between the observations and the mesh points is small. In order to minimize that distance, we need to increase the number of knots. **MultivarTV** allows the user to specify $m_j$ knots per feature $x_j$. It will be best practice to choose a same large number of knots per each feature and allow regularization to smooth the solution. However, as we discuss next, the number of features does impact the functionality of **MultivarTV**. 
 
 The primary implementation function $\tt{mvtv}$ accepts any number of features. However, the generic $\tt{plot}$ function does not accept $\tt{mvtv}$-objects built on $p>2$. We can still plot the residuals versus fitted values for any size problem using the $\tt{plotResiduals}$ function:
 
-```{r figure7, echo=TRUE, fig.cap= "Figure 7. Residuals plot for perfectly noisy data.", fig.width=3.5}
+```{r figure8, echo=TRUE, fig.cap= "Figure 7. Residuals plot for perfectly noisy data.", fig.width=3.5}
 set.seed(117)
 n <- 300
 p <- 3
@@ -223,8 +224,8 @@ tv3 <- mvtv(data,y,m,verbose = FALSE)
 plotResiduals(tv3)
 ```
 
-For uniform noisy data regressed on uniform noisy trivariate data, we expect fitted values at the mean and evenly dispersed residuals, which is what we see with some small wiggling (Figure 7). 
+For uniform noisy data regressed on uniform noisy trivariate data, we expect fitted values at the mean and evenly dispersed residuals, which is what we see with some small wiggling (Figure 8). 
 
-The larger issue with the number of features has to do with scaling. Using the same number of knots for each feature, the number of optimization parameters is $m^p$. For modest $m$ and large $p$, the difference matrices (even though they are stored as sparse matrices) become larger than most personal laptops can store. Although we recommend an aggressive number of knots for a good solution, it may be best practice to let $m=N^{\frac{1}{4}}$ at experimental stages.  
+The larger issue with the number of features has to do with scaling. Using the same number of knots for each feature, the number of optimization parameters is $m^p$. For modest $m$ and large $p$, the difference matrices (even though they are stored as sparse matrices) become larger than most personal laptops can store. We recommend a large number of knots, $m>N^{\frac{2}{3}}$, for a quality solution, but it may be best practice to use fewer at experimental stages.  
 
 # Bibliography

@@ -54,8 +54,8 @@ mvtv.default <- function(data, y, m= NULL, ... , mesh = NULL, n_lambda = 100, ft
   
   se1 <- sd(model$cv.mses)/sqrt(n_lambda)
   right <- model$cv.mses[model$lambda_minmse_ind]+se1
-  cands <- which(model$cv.mses <= right)
-  model$lambda.1se <- model$lambdas[cands[length(cands)]]
+  cands <- which(model$cv.mses >= right)
+  model$lambda.1se <- model$lambdas[cands[1]]
   
   class(model) <- "mvtv"
   return(model)
